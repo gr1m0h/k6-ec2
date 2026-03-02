@@ -282,3 +282,258 @@ func TestIsSSMEnabled_ExplicitFalse(t *testing.T) {
 		t.Error("expected SSM disabled")
 	}
 }
+
+func TestParseForCommand_Cleanup_ValidPolicy(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+cleanup: on-success
+`
+	cfg, err := ParseForCommand([]byte(yaml), CommandCleanup, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Cleanup != "on-success" {
+		t.Errorf("expected cleanup 'on-success', got %q", cfg.Cleanup)
+	}
+}
+
+func TestParseForCommand_Cleanup_InvalidPolicy(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+cleanup: sometimes
+`
+	_, err := ParseForCommand([]byte(yaml), CommandCleanup, nil)
+	if err == nil {
+		t.Fatal("expected error for invalid cleanup policy")
+	}
+}
+
+func TestParseForCommand_Cleanup_NeverPolicy(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+cleanup: never
+`
+	cfg, err := ParseForCommand([]byte(yaml), CommandCleanup, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Cleanup != "never" {
+		t.Errorf("expected cleanup 'never', got %q", cfg.Cleanup)
+	}
+}
+
+func TestParseForCommand_Prepare_MissingName(t *testing.T) {
+	yaml := `
+script:
+  inline: "test"
+`
+	_, err := ParseForCommand([]byte(yaml), CommandPrepare, nil)
+	if err == nil {
+		t.Fatal("expected error for missing name in prepare")
+	}
+}
+
+func TestParseForCommand_Prepare_MissingScript(t *testing.T) {
+	yaml := `
+name: test
+`
+	_, err := ParseForCommand([]byte(yaml), CommandPrepare, nil)
+	if err == nil {
+		t.Fatal("expected error for missing script in prepare")
+	}
+}
+
+func TestParseForCommand_Launch_WithEIPs(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+runner:
+  parallelism: 2
+execution:
+  subnets: [subnet-abc]
+  eipAllocationIDs:
+    - eipalloc-aaa
+    - eipalloc-bbb
+`
+	cfg, err := ParseForCommand([]byte(yaml), CommandLaunch, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Execution.EIPAllocationIDs) != 2 {
+		t.Errorf("expected 2 EIPs, got %d", len(cfg.Execution.EIPAllocationIDs))
+	}
+}
+
+func TestParseForCommand_Launch_InsufficientEIPs(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+runner:
+  parallelism: 4
+execution:
+  subnets: [subnet-abc]
+  eipAllocationIDs:
+    - eipalloc-aaa
+`
+	_, err := ParseForCommand([]byte(yaml), CommandLaunch, nil)
+	if err == nil {
+		t.Fatal("expected error for insufficient EIPs in launch")
+	}
+}
+
+func TestParseForCommand_Launch_MissingName(t *testing.T) {
+	yaml := `
+script:
+  inline: "test"
+runner:
+  parallelism: 2
+execution:
+  subnets: [subnet-abc]
+`
+	_, err := ParseForCommand([]byte(yaml), CommandLaunch, nil)
+	if err == nil {
+		t.Fatal("expected error for missing name in launch")
+	}
+}
+
+func TestParseForCommand_Launch_InvalidParallelism(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+runner:
+  parallelism: 200
+execution:
+  subnets: [subnet-abc]
+`
+	_, err := ParseForCommand([]byte(yaml), CommandLaunch, nil)
+	if err == nil {
+		t.Fatal("expected error for invalid parallelism in launch")
+	}
+}
+
+func TestParseForCommand_Execute_MissingName(t *testing.T) {
+	yaml := `
+script:
+  inline: "test"
+`
+	_, err := ParseForCommand([]byte(yaml), CommandExecute, nil)
+	if err == nil {
+		t.Fatal("expected error for missing name in execute")
+	}
+}
+
+func TestParseForCommand_Execute_InvalidTimeout(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+execution:
+  timeout: invalid
+`
+	_, err := ParseForCommand([]byte(yaml), CommandExecute, nil)
+	if err == nil {
+		t.Fatal("expected error for invalid timeout in execute")
+	}
+}
+
+func TestParse_InvalidYAML(t *testing.T) {
+	_, err := Parse([]byte(":::invalid yaml"))
+	if err == nil {
+		t.Fatal("expected error for invalid YAML")
+	}
+}
+
+func TestParse_MultipleScriptSources(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+  s3: s3://bucket/key
+execution:
+  subnets: [subnet-abc]
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for multiple script sources")
+	}
+}
+
+func TestParse_InvalidCleanupPolicy(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+execution:
+  subnets: [subnet-abc]
+cleanup: invalid
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for invalid cleanup policy in full validate")
+	}
+}
+
+func TestParse_InvalidTimeout(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+execution:
+  subnets: [subnet-abc]
+  timeout: badvalue
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for invalid timeout in full validate")
+	}
+}
+
+func TestParseForCommand_NilOverrides(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+execution:
+  subnets: [subnet-abc]
+`
+	cfg, err := ParseForCommand([]byte(yaml), CommandRun, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Runner.Parallelism != 1 {
+		t.Errorf("expected default parallelism 1, got %d", cfg.Runner.Parallelism)
+	}
+}
+
+func TestParseForCommand_PartialOverrides(t *testing.T) {
+	yaml := `
+name: test
+script:
+  inline: "test"
+execution:
+  subnets: [subnet-abc]
+  region: us-east-1
+`
+	region := "eu-west-1"
+	overrides := &Overrides{Region: &region}
+	cfg, err := ParseForCommand([]byte(yaml), CommandRun, overrides)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Execution.Region != "eu-west-1" {
+		t.Errorf("expected region 'eu-west-1', got %q", cfg.Execution.Region)
+	}
+	// Parallelism should remain default since not overridden
+	if cfg.Runner.Parallelism != 1 {
+		t.Errorf("expected default parallelism 1, got %d", cfg.Runner.Parallelism)
+	}
+}
