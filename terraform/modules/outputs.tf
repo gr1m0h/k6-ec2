@@ -20,7 +20,7 @@ output "runner_role_arn" {
 
 output "cli_policy_arn" {
   description = "IAM policy ARN to attach to the CI/CD role or user that runs  the k6ec2 CLI."
-  value       = aws_iam_role.cli.arn
+  value       = aws_iam_policy.cli.arn
 }
 
 output "security_group_id" {

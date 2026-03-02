@@ -231,7 +231,7 @@ resource "aws_iam_policy" "cli_eip" {
       {
         Sid      = "EIPManagement"
         Effect   = "Allow",
-        Action   = ["ec2:AssociateAddress", "ec2:DesassociateAddress", "ec2:DescribeAddress"],
+        Action   = ["ec2:AssociateAddress", "ec2:DisassociateAddress", "ec2:DescribeAddresses"],
         Resource = "*"
       }
     ]
