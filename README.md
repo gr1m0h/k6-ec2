@@ -36,29 +36,28 @@ k6-ec2 run -f testrun.yaml    # Execute load test
 ## Configuration
 
 ```yaml
-apiVersion: k6-ec2.io/v1alpha1
-kind: EC2TestRun
-metadata:
-  name: my-load-test
-spec:
-  script:
-    localFile: ./scripts/test.js
-  runner:
-    instanceType: c5.xlarge
-    parallelism: 4
-    iamInstanceProfile: k6-ec2-runner
-    spot:
-      enabled: true
-      fallbackToOnDemand: true
-  execution:
-    subnets: [subnet-xxx]
-    securityGroups: [sg-xxx]
-    assignPublicIP: true
-    region: ap-northeast-1
-    timeout: 30m
-    ssmEnabled: true
-  cleanup:
-    policy: always  # always | on-success | never
+name: my-load-test
+
+script:
+  localFile: ./scripts/test.js
+
+runner:
+  instanceType: c5.xlarge
+  parallelism: 4
+  iamInstanceProfile: k6-ec2-runner
+  spot:
+    enabled: true
+    fallbackToOnDemand: true
+
+execution:
+  subnets: [subnet-xxx]
+  securityGroups: [sg-xxx]
+  assignPublicIP: true
+  region: ap-northeast-1
+  timeout: 30m
+  ssmEnabled: true
+
+cleanup: always  # always | on-success | never
 ```
 
 ## CLI

@@ -16,14 +16,14 @@ import (
 func (r *Runner) Prepare(ctx context.Context) (*PrepareResult, error) {
 	r.setPhase(types.PhaseCreating)
 
-	loc, err := r.scripts.Resolve(ctx, &r.spec.Spec.Script, r.spec.Metadata.Name)
+	loc, err := r.scripts.Resolve(ctx, &r.spec.Script, r.spec.Name)
 	if err != nil {
 		return nil, fmt.Errorf("script preparation failed: %w", err)
 	}
 	r.scriptS3 = loc
 	r.logger.Info("script ready", "bucket", loc.Bucket, "key", loc.Key)
 
-	ami := r.spec.Spec.Runner.AMI
+	ami := r.spec.Runner.AMI
 	if ami == "" {
 		ami, err = r.resolveLatestAMI(ctx)
 		if err != nil {

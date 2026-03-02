@@ -19,12 +19,12 @@ func newValidateCmd() *cobra.Command {
 				return err
 			}
 			fmt.Printf("✓ Configuration is valid\n")
-			fmt.Printf("  Name:          %s\n", spec.Metadata.Name)
-			fmt.Printf("  Parallelism:   %d\n", spec.Spec.Runner.Parallelism)
-			fmt.Printf("  Instance Type: %s\n", spec.Spec.Runner.InstanceType)
-			fmt.Printf("  Spot:          %v\n", spec.Spec.Runner.Spot.Enabled)
-			fmt.Printf("  SSM:           %v\n", spec.Spec.Execution.IsSSMEnabled())
-			fmt.Printf("  Subnets:       %d\n", len(spec.Spec.Execution.Subnets))
+			fmt.Printf("  Name:          %s\n", spec.Name)
+			fmt.Printf("  Parallelism:   %d\n", spec.Runner.Parallelism)
+			fmt.Printf("  Instance Type: %s\n", spec.Runner.InstanceType)
+			fmt.Printf("  Spot:          %v\n", spec.Runner.Spot.Enabled)
+			fmt.Printf("  SSM:           %v\n", spec.Execution.IsSSMEnabled())
+			fmt.Printf("  Subnets:       %d\n", len(spec.Execution.Subnets))
 			return nil
 		},
 	}

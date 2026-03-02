@@ -31,7 +31,7 @@ func (r *Runner) Execute(ctx context.Context, params *ExecuteParams) (*ExecuteRe
 		}
 	}
 
-	if r.spec.Spec.Execution.IsSSMEnabled() {
+	if r.spec.Execution.IsSSMEnabled() {
 		if err := r.waitForSSMReady(ctx); err != nil {
 			return nil, fmt.Errorf("SSM readiness wait failed: %w", err)
 		}
@@ -101,7 +101,7 @@ func (r *Runner) waitForSSMReady(ctx context.Context) error {
 func (r *Runner) executeViaSSM(ctx context.Context, params *ExecuteParams) error {
 	r.logger.Info("executing k6 via SSM Run Command")
 
-	cmd := output.BuildK6Command(&r.spec.Spec.Output, "/tmp/test.js", r.spec.Spec.Runner.Arguments)
+	cmd := output.BuildK6Command(&r.spec.Output, "/tmp/test.js", r.spec.Runner.Arguments)
 
 	// For external instances, prepend S3 script download
 	if params != nil && params.ExternalInstances && params.ScriptS3 != nil {
@@ -116,7 +116,7 @@ func (r *Runner) executeViaSSM(ctx context.Context, params *ExecuteParams) error
 			"commands":         {cmd},
 			"executionTimeout": {"3600"},
 		},
-		Comment: aws.String(fmt.Sprintf("k6-ec2: %s", r.spec.Metadata.Name)),
+		Comment: aws.String(fmt.Sprintf("k6-ec2: %s", r.spec.Name)),
 		CloudWatchOutputConfig: &ssmtypes.CloudWatchOutputConfig{
 			CloudWatchLogGroupName:  aws.String(r.LogGroup()),
 			CloudWatchOutputEnabled: true,

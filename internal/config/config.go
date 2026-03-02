@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	DefaultAPIVersion   = "k6-ec2.io/v1alpha1"
 	DefaultInstanceType = "c5.xlarge"
 	DefaultK6Version    = "latest"
 	DefaultRootVolume   = 20
@@ -17,21 +16,15 @@ const (
 	DefaultTimeout      = "30m"
 )
 
-// TestRunSpec defines the complete EC2-based test run.
-type TestRunSpec struct {
-	APIVersion string         `yaml:"apiVersion"`
-	Kind       string         `yaml:"kind"`
-	Metadata   types.Metadata `yaml:"metadata"`
-	Spec       TestRunDetail  `yaml:"spec"`
-}
-
-// TestRunDetail contains the EC2-specific configuration.
-type TestRunDetail struct {
+// Config defines the complete EC2-based test run configuration.
+type Config struct {
+	Name      string            `yaml:"name"`
+	Labels    map[string]string `yaml:"labels,omitempty"`
 	Script    types.ScriptSpec  `yaml:"script"`
 	Runner    RunnerSpec        `yaml:"runner"`
 	Execution ExecutionSpec     `yaml:"execution"`
 	Output    types.OutputSpec  `yaml:"output,omitempty"`
-	Cleanup   types.CleanupSpec `yaml:"cleanup,omitempty"`
+	Cleanup   string            `yaml:"cleanup,omitempty"`
 }
 
 // RunnerSpec defines the EC2 runner configuration.
@@ -107,8 +100,8 @@ type InstanceStatus struct {
 	SpotID     string `json:"spotId,omitempty"`
 }
 
-// Load reads and parses a TestRunSpec from a YAML file.
-func Load(path string) (*TestRunSpec, error) {
+// Load reads and parses a Config from a YAML file.
+func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
@@ -116,30 +109,23 @@ func Load(path string) (*TestRunSpec, error) {
 	return Parse(data)
 }
 
-// Parse parses a TestRunSpec from YAML bytes.
-func Parse(data []byte) (*TestRunSpec, error) {
-	var spec TestRunSpec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
+// Parse parses a Config from YAML bytes.
+func Parse(data []byte) (*Config, error) {
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	applyDefaults(&spec)
+	applyDefaults(&cfg)
 
-	if err := validate(&spec); err != nil {
+	if err := validate(&cfg); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
-	return &spec, nil
+	return &cfg, nil
 }
 
-func applyDefaults(spec *TestRunSpec) {
-	if spec.APIVersion == "" {
-		spec.APIVersion = DefaultAPIVersion
-	}
-	if spec.Kind == "" {
-		spec.Kind = "EC2TestRun"
-	}
-
-	r := &spec.Spec.Runner
+func applyDefaults(cfg *Config) {
+	r := &cfg.Runner
 	if r.InstanceType == "" {
 		r.InstanceType = DefaultInstanceType
 	}
@@ -153,41 +139,41 @@ func applyDefaults(spec *TestRunSpec) {
 		r.RootVolumeSize = int32(DefaultRootVolume)
 	}
 
-	if spec.Spec.Execution.Timeout == "" {
-		spec.Spec.Execution.Timeout = DefaultTimeout
+	if cfg.Execution.Timeout == "" {
+		cfg.Execution.Timeout = DefaultTimeout
 	}
-	if spec.Spec.Cleanup.Policy == "" {
-		spec.Spec.Cleanup.Policy = DefaultCleanup
+	if cfg.Cleanup == "" {
+		cfg.Cleanup = DefaultCleanup
 	}
 }
 
-func validate(spec *TestRunSpec) error {
-	if err := types.ValidateMetadata(&spec.Metadata); err != nil {
+func validate(cfg *Config) error {
+	if err := types.ValidateName(cfg.Name); err != nil {
 		return err
 	}
-	if err := types.ValidateScript(&spec.Spec.Script); err != nil {
-		return fmt.Errorf("spec.script: %w", err)
+	if err := types.ValidateScript(&cfg.Script); err != nil {
+		return fmt.Errorf("script: %w", err)
 	}
-	if err := types.ValidateParallelism(spec.Spec.Runner.Parallelism); err != nil {
-		return fmt.Errorf("spec.runner: %w", err)
-	}
-
-	if len(spec.Spec.Execution.Subnets) == 0 {
-		return fmt.Errorf("spec.execution.subnets is required")
+	if err := types.ValidateParallelism(cfg.Runner.Parallelism); err != nil {
+		return fmt.Errorf("runner: %w", err)
 	}
 
-	if eips := spec.Spec.Execution.EIPAllocationIDs; len(eips) > 0 {
-		if int32(len(eips)) < spec.Spec.Runner.Parallelism {
-			return fmt.Errorf("spec.execution.eipAllocationIDs: need at least %d EIPs for parallelism %d, got %d",
-				spec.Spec.Runner.Parallelism, spec.Spec.Runner.Parallelism, len(eips))
+	if len(cfg.Execution.Subnets) == 0 {
+		return fmt.Errorf("execution.subnets is required")
+	}
+
+	if eips := cfg.Execution.EIPAllocationIDs; len(eips) > 0 {
+		if int32(len(eips)) < cfg.Runner.Parallelism {
+			return fmt.Errorf("execution.eipAllocationIDs: need at least %d EIPs for parallelism %d, got %d",
+				cfg.Runner.Parallelism, cfg.Runner.Parallelism, len(eips))
 		}
 	}
 
-	if err := types.ValidateTimeout(spec.Spec.Execution.Timeout); err != nil {
-		return fmt.Errorf("spec.execution.timeout: %w", err)
+	if err := types.ValidateTimeout(cfg.Execution.Timeout); err != nil {
+		return fmt.Errorf("execution.timeout: %w", err)
 	}
-	if err := types.ValidateCleanup(&spec.Spec.Cleanup); err != nil {
-		return fmt.Errorf("spec.cleanup: %w", err)
+	if err := types.ValidateCleanup(cfg.Cleanup); err != nil {
+		return fmt.Errorf("cleanup: %w", err)
 	}
 
 	return nil

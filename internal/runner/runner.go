@@ -21,7 +21,7 @@ import (
 
 // Runner orchestrates a distributed k6 test run on EC2 instances.
 type Runner struct {
-	spec      *config.TestRunSpec
+	spec      *config.Config
 	ec2Client *ec2.Client
 	ssmClient *ssm.Client
 	scripts   *script.Manager
@@ -38,10 +38,10 @@ type Runner struct {
 }
 
 // New creates a new EC2 Runner.
-func New(spec *config.TestRunSpec, logger *slog.Logger) (*Runner, error) {
+func New(spec *config.Config, logger *slog.Logger) (*Runner, error) {
 	var opts []func(*awsconfig.LoadOptions) error
-	if spec.Spec.Execution.Region != "" {
-		opts = append(opts, awsconfig.WithRegion(spec.Spec.Execution.Region))
+	if spec.Execution.Region != "" {
+		opts = append(opts, awsconfig.WithRegion(spec.Execution.Region))
 	}
 
 	cfg, err := awsconfig.LoadDefaultConfig(context.Background(), opts...)
@@ -51,7 +51,7 @@ func New(spec *config.TestRunSpec, logger *slog.Logger) (*Runner, error) {
 
 	bucket := os.Getenv("K6_EC2_SCRIPT_BUCKET")
 	if bucket == "" {
-		bucket = fmt.Sprintf("k6-ec2-scripts-%s", spec.Spec.Execution.Region)
+		bucket = fmt.Sprintf("k6-ec2-scripts-%s", spec.Execution.Region)
 	}
 
 	return &Runner{
@@ -67,13 +67,13 @@ func New(spec *config.TestRunSpec, logger *slog.Logger) (*Runner, error) {
 // Run executes the full lifecycle by calling Prepare, Launch, Execute, and cleanup.
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Info("starting EC2 test run",
-		"name", r.spec.Metadata.Name,
-		"parallelism", r.spec.Spec.Runner.Parallelism,
-		"instanceType", r.spec.Spec.Runner.InstanceType,
-		"spot", r.spec.Spec.Runner.Spot.Enabled,
+		"name", r.spec.Name,
+		"parallelism", r.spec.Runner.Parallelism,
+		"instanceType", r.spec.Runner.InstanceType,
+		"spot", r.spec.Runner.Spot.Enabled,
 	)
 
-	timeout, _ := time.ParseDuration(r.spec.Spec.Execution.Timeout)
+	timeout, _ := time.ParseDuration(r.spec.Execution.Timeout)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -142,7 +142,7 @@ func (r *Runner) Summary() *result.Summary {
 	}
 
 	var spot *types.SpotInfo
-	if r.spec.Spec.Runner.Spot.Enabled {
+	if r.spec.Runner.Spot.Enabled {
 		spot = &types.SpotInfo{
 			Used:     r.spotCount > 0,
 			Count:    r.spotCount,
@@ -151,20 +151,20 @@ func (r *Runner) Summary() *result.Summary {
 	}
 
 	return result.NewSummary(
-		r.spec.Metadata.Name, "EC2/"+r.spec.Spec.Runner.InstanceType,
-		string(r.phase), r.spec.Spec.Runner.Parallelism,
+		r.spec.Name, "EC2/"+r.spec.Runner.InstanceType,
+		string(r.phase), r.spec.Runner.Parallelism,
 		r.startTime, r.endTime, results, spot,
 	)
 }
 
 // LogGroup returns the CloudWatch log group name.
 func (r *Runner) LogGroup() string {
-	return fmt.Sprintf("/k6-ec2/%s", r.spec.Metadata.Name)
+	return fmt.Sprintf("/k6-ec2/%s", r.spec.Name)
 }
 
 // Region returns the configured region.
 func (r *Runner) Region() string {
-	return r.spec.Spec.Execution.Region
+	return r.spec.Execution.Region
 }
 
 // EvaluateResults checks if any instances failed and returns an error if so.

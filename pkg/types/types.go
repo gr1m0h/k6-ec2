@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-// Metadata holds test run metadata.
-type Metadata struct {
-	Name   string            `yaml:"name" json:"name"`
-	Labels map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
-}
-
 // ScriptSpec defines the k6 test script source.
 type ScriptSpec struct {
 	LocalFile string `yaml:"localFile,omitempty" json:"localFile,omitempty"`
@@ -28,11 +22,6 @@ type StatsDSpec struct {
 	Address     string `yaml:"address,omitempty" json:"address,omitempty"`
 	EnabledTags bool   `yaml:"enabledTags,omitempty" json:"enabledTags,omitempty"`
 	Namespace   string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
-}
-
-// CleanupSpec defines cleanup behavior after a test run.
-type CleanupSpec struct {
-	Policy string `yaml:"policy,omitempty" json:"policy,omitempty"`
 }
 
 // S3Location represents an object in S3.
@@ -70,10 +59,10 @@ type SpotInfo struct {
 	Fallback int  `json:"fallback"`
 }
 
-// ValidateMetadata validates the test run metadata.
-func ValidateMetadata(m *Metadata) error {
-	if m.Name == "" {
-		return fmt.Errorf("metadata.name is required")
+// ValidateName validates the test run name.
+func ValidateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("name is required")
 	}
 	return nil
 }
@@ -122,12 +111,12 @@ func ValidateTimeout(t string) error {
 	return nil
 }
 
-// ValidateCleanup validates the cleanup specification.
-func ValidateCleanup(c *CleanupSpec) error {
-	switch c.Policy {
+// ValidateCleanup validates the cleanup policy string.
+func ValidateCleanup(policy string) error {
+	switch policy {
 	case "", "always", "on-success", "never":
 		return nil
 	default:
-		return fmt.Errorf("invalid cleanup policy %q: must be always, on-success, or never", c.Policy)
+		return fmt.Errorf("invalid cleanup policy %q: must be always, on-success, or never", policy)
 	}
 }

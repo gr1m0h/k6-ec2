@@ -62,52 +62,48 @@ func newLogger(cmd *cobra.Command) *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 }
 
-const sampleConfig = `apiVersion: k6-ec2.io/v1alpha1
-kind: EC2TestRun
-metadata:
-  name: my-load-test
-  labels:
-    team: platform
-	env: staging
-spec:
-  script:
-	localFile: ./scripts/test.js
+const sampleConfig = `name: my-load-test
+labels:
+  team: platform
+  env: staging
 
-  runner:
-	instanceType: c5.xlarge
-	parallelism: 4
-	k6Version: latest
-	rootVolumeSize: 20
-	spot:
-	  enabled: true
-	  fallbackToOnDemand: true
-	env:
-	  k6_BATCH: "20"
-	  k6_BATCH_PER_HOST: "5"
+script:
+  localFile: ./scripts/test.js
 
-  execution:
-	subnets:
-	  - subnet-xxxxxxxxxx
-	securityGroups:
-	  - sg-xxxxxxxxxx
-	assignPublicIP: true
-	region: ap-northeast-1
-	timeout: 30m
-	ssmEnabled: true
-    # Uncomment to associate pre-allocated EIPs for WAF IP-based allowlisting.
-    # Length must be >= runner.parallelism.
-    # eipAllocationIDs:
-    #   - eipalloc-xxxxxxxxxxxxxxxxx
-    #   - eipalloc-xxxxxxxxxxxxxxxxx
-    #   - eipalloc-xxxxxxxxxxxxxxxxx
-    #   - eipalloc-xxxxxxxxxxxxxxxxx
+runner:
+  instanceType: c5.xlarge
+  parallelism: 4
+  k6Version: latest
+  rootVolumeSize: 20
+  spot:
+    enabled: true
+    fallbackToOnDemand: true
+  env:
+    K6_BATCH: "20"
+    K6_BATCH_PER_HOST: "5"
 
-  output:
-    statsd:
-	  address: "datadog-agent.service.local:8125"
-	  enabledTags: true
-	  namespace: "k6."
+execution:
+  subnets:
+    - subnet-xxxxxxxxxx
+  securityGroups:
+    - sg-xxxxxxxxxx
+  assignPublicIP: true
+  region: ap-northeast-1
+  timeout: 30m
+  ssmEnabled: true
+  # Uncomment to associate pre-allocated EIPs for WAF IP-based allowlisting.
+  # Length must be >= runner.parallelism.
+  # eipAllocationIDs:
+  #   - eipalloc-xxxxxxxxxxxxxxxxx
+  #   - eipalloc-xxxxxxxxxxxxxxxxx
+  #   - eipalloc-xxxxxxxxxxxxxxxxx
+  #   - eipalloc-xxxxxxxxxxxxxxxxx
 
-  cleanup:
-	policy: always
+output:
+  statsd:
+    address: "datadog-agent.service.local:8125"
+    enabledTags: true
+    namespace: "k6."
+
+cleanup: always
 `

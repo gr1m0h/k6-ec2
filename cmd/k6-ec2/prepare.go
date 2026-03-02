@@ -52,7 +52,7 @@ Writes a state file that can be consumed by subsequent pipeline commands.`,
 			}
 
 			state := &runner.PipelineState{
-				TestName:  spec.Metadata.Name,
+				TestName:  spec.Name,
 				Region:    r.Region(),
 				ScriptS3:  prep.ScriptS3,
 				AMI:       prep.AMI,

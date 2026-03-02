@@ -27,7 +27,7 @@ func (r *Runner) Launch(ctx context.Context, params *LaunchParams) (*LaunchResul
 	r.logger.Info("instances launched", "count", len(r.instances))
 
 	// Associate EIPs if configured
-	if len(r.spec.Spec.Execution.EIPAllocationIDs) > 0 {
+	if len(r.spec.Execution.EIPAllocationIDs) > 0 {
 		if err := r.associateEIPs(ctx); err != nil {
 			return nil, fmt.Errorf("EIP association failed: %w", err)
 		}
@@ -41,9 +41,9 @@ func (r *Runner) Launch(ctx context.Context, params *LaunchParams) (*LaunchResul
 }
 
 func (r *Runner) launchInstances(ctx context.Context, ami string) error {
-	subnets := r.spec.Spec.Execution.Subnets
+	subnets := r.spec.Execution.Subnets
 
-	for i := int32(0); i < r.spec.Spec.Runner.Parallelism; i++ {
+	for i := int32(0); i < r.spec.Runner.Parallelism; i++ {
 		subnet := subnets[int(i)%len(subnets)]
 
 		userData := r.buildUserData(i)
@@ -51,7 +51,7 @@ func (r *Runner) launchInstances(ctx context.Context, ami string) error {
 
 		input := &ec2.RunInstancesInput{
 			ImageId:      aws.String(ami),
-			InstanceType: ec2types.InstanceType(r.spec.Spec.Runner.InstanceType),
+			InstanceType: ec2types.InstanceType(r.spec.Runner.InstanceType),
 			MinCount:     aws.Int32(1),
 			MaxCount:     aws.Int32(1),
 			UserData:     aws.String(encodedUD),
@@ -59,15 +59,15 @@ func (r *Runner) launchInstances(ctx context.Context, ami string) error {
 				{
 					DeviceIndex:              aws.Int32(0),
 					SubnetId:                 aws.String(subnet),
-					Groups:                   r.spec.Spec.Execution.SecurityGroups,
-					AssociatePublicIpAddress: aws.Bool(r.spec.Spec.Execution.AssignPublicIP),
+					Groups:                   r.spec.Execution.SecurityGroups,
+					AssociatePublicIpAddress: aws.Bool(r.spec.Execution.AssignPublicIP),
 				},
 			},
 			BlockDeviceMappings: []ec2types.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
 					Ebs: &ec2types.EbsBlockDevice{
-						VolumeSize: aws.Int32(r.spec.Spec.Runner.RootVolumeSize),
+						VolumeSize: aws.Int32(r.spec.Runner.RootVolumeSize),
 						VolumeType: ec2types.VolumeTypeGp3,
 						Encrypted:  aws.Bool(true),
 					},
@@ -80,8 +80,8 @@ func (r *Runner) launchInstances(ctx context.Context, ami string) error {
 				{
 					ResourceType: ec2types.ResourceTypeInstance,
 					Tags: []ec2types.Tag{
-						{Key: aws.String("Name"), Value: aws.String(fmt.Sprintf("k6-ec2-%s-%d", r.spec.Metadata.Name, i))},
-						{Key: aws.String("k6-ec2/test-run"), Value: aws.String(r.spec.Metadata.Name)},
+						{Key: aws.String("Name"), Value: aws.String(fmt.Sprintf("k6-ec2-%s-%d", r.spec.Name, i))},
+						{Key: aws.String("k6-ec2/test-run"), Value: aws.String(r.spec.Name)},
 						{Key: aws.String("k6-ec2/managed-by"), Value: aws.String("k6-ec2")},
 						{Key: aws.String("k6-ec2/runner-id"), Value: aws.String(fmt.Sprintf("%d", i))},
 					},
@@ -89,29 +89,29 @@ func (r *Runner) launchInstances(ctx context.Context, ami string) error {
 			},
 		}
 
-		if r.spec.Spec.Runner.IAMInstanceProfile != "" {
+		if r.spec.Runner.IAMInstanceProfile != "" {
 			input.IamInstanceProfile = &ec2types.IamInstanceProfileSpecification{
-				Name: aws.String(r.spec.Spec.Runner.IAMInstanceProfile),
+				Name: aws.String(r.spec.Runner.IAMInstanceProfile),
 			}
 		}
 
 		// Try Spot first if enabled
-		if r.spec.Spec.Runner.Spot.Enabled {
+		if r.spec.Runner.Spot.Enabled {
 			input.InstanceMarketOptions = &ec2types.InstanceMarketOptionsRequest{
 				MarketType: ec2types.MarketTypeSpot,
 				SpotOptions: &ec2types.SpotMarketOptions{
 					SpotInstanceType: ec2types.SpotInstanceTypeOneTime,
 				},
 			}
-			if r.spec.Spec.Runner.Spot.MaxPrice != "" {
-				input.InstanceMarketOptions.SpotOptions.MaxPrice = aws.String(r.spec.Spec.Runner.Spot.MaxPrice)
+			if r.spec.Runner.Spot.MaxPrice != "" {
+				input.InstanceMarketOptions.SpotOptions.MaxPrice = aws.String(r.spec.Runner.Spot.MaxPrice)
 			}
 		}
 
 		res, err := r.ec2Client.RunInstances(ctx, input)
 		if err != nil {
 			// Spot fallback
-			if r.spec.Spec.Runner.Spot.Enabled && r.spec.Spec.Runner.Spot.FallbackToOnDemand {
+			if r.spec.Runner.Spot.Enabled && r.spec.Runner.Spot.FallbackToOnDemand {
 				r.logger.Warn("Spot request failed, falling back to on-demand", "runner", i, "error", err)
 				input.InstanceMarketOptions = nil
 				res, err = r.ec2Client.RunInstances(ctx, input)
@@ -122,7 +122,7 @@ func (r *Runner) launchInstances(ctx context.Context, ami string) error {
 			} else {
 				return fmt.Errorf("failed to launch instance %d: %w", i, err)
 			}
-		} else if r.spec.Spec.Runner.Spot.Enabled {
+		} else if r.spec.Runner.Spot.Enabled {
 			r.spotCount++
 		}
 
@@ -146,16 +146,16 @@ func (r *Runner) launchInstances(ctx context.Context, ami string) error {
 }
 
 func (r *Runner) buildUserData(runnerID int32) string {
-	envVars, _ := output.Build(&r.spec.Spec.Output)
+	envVars, _ := output.Build(&r.spec.Output)
 
 	var sb strings.Builder
 	sb.WriteString("#!/bin/bash\nset -euo pipefail\n\n")
 	sb.WriteString("# k6-ec2 auto-generated user data\n")
 	sb.WriteString(fmt.Sprintf("export K6_INSTANCE_ID=%d\n", runnerID))
-	sb.WriteString(fmt.Sprintf("export K6_PARALLELISM=%d\n", r.spec.Spec.Runner.Parallelism))
+	sb.WriteString(fmt.Sprintf("export K6_PARALLELISM=%d\n", r.spec.Runner.Parallelism))
 
 	// Set env vars
-	for k, v := range r.spec.Spec.Runner.Env {
+	for k, v := range r.spec.Runner.Env {
 		sb.WriteString(fmt.Sprintf("export %s=%q\n", k, v))
 	}
 	for _, ev := range envVars {
@@ -164,11 +164,11 @@ func (r *Runner) buildUserData(runnerID int32) string {
 
 	// Install k6
 	sb.WriteString("\n# Install k6\n")
-	if r.spec.Spec.Runner.K6Version == "latest" {
+	if r.spec.Runner.K6Version == "latest" {
 		sb.WriteString("curl -sL https://github.com/grafana/k6/releases/latest/download/k6-linux-amd64.tar.gz | tar xz\n")
 	} else {
 		sb.WriteString(fmt.Sprintf("curl -sL https://github.com/grafana/k6/releases/download/v%s/k6-v%s-linux-amd64.tar.gz | tar xz\n",
-			r.spec.Spec.Runner.K6Version, r.spec.Spec.Runner.K6Version))
+			r.spec.Runner.K6Version, r.spec.Runner.K6Version))
 	}
 	sb.WriteString("mv k6-*/k6 /usr/local/bin/k6 2>/dev/null || mv k6 /usr/local/bin/k6\n")
 	sb.WriteString("chmod +x /usr/local/bin/k6\n")
@@ -178,16 +178,16 @@ func (r *Runner) buildUserData(runnerID int32) string {
 	sb.WriteString(fmt.Sprintf("aws s3 cp s3://%s/%s /tmp/test.js\n", r.scriptS3.Bucket, r.scriptS3.Key))
 
 	// Extra user data
-	if r.spec.Spec.Runner.UserDataExtra != "" {
+	if r.spec.Runner.UserDataExtra != "" {
 		sb.WriteString("\n# Extra user data\n")
-		sb.WriteString(r.spec.Spec.Runner.UserDataExtra)
+		sb.WriteString(r.spec.Runner.UserDataExtra)
 		sb.WriteString("\n")
 	}
 
 	// Run k6 (only for non-SSM mode)
-	if !r.spec.Spec.Execution.IsSSMEnabled() {
+	if !r.spec.Execution.IsSSMEnabled() {
 		sb.WriteString("\n# Run k6\n")
-		cmd := output.BuildK6Command(&r.spec.Spec.Output, "/tmp/test.js", r.spec.Spec.Runner.Arguments)
+		cmd := output.BuildK6Command(&r.spec.Output, "/tmp/test.js", r.spec.Runner.Arguments)
 		sb.WriteString(fmt.Sprintf("EXIT_CODE=0\n%s || EXIT_CODE=$?\n", cmd))
 
 		// Tag instance with exit code
@@ -201,7 +201,7 @@ func (r *Runner) buildUserData(runnerID int32) string {
 }
 
 func (r *Runner) associateEIPs(ctx context.Context) error {
-	eips := r.spec.Spec.Execution.EIPAllocationIDs
+	eips := r.spec.Execution.EIPAllocationIDs
 
 	// Wait for all instances to reach "running" state before associating EIPs.
 	r.logger.Info("waiting for instances to be running for EIP association...")

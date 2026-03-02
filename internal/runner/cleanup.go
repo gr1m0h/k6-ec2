@@ -20,7 +20,7 @@ func (r *Runner) CleanupInstances(ctx context.Context, params *CleanupParams) er
 }
 
 func (r *Runner) cleanup(ctx context.Context) error {
-	policy := r.spec.Spec.Cleanup.Policy
+	policy := r.spec.Cleanup
 	shouldCleanup := policy == "always" ||
 		(policy == "on-success" && r.phase == types.PhaseCompleted)
 

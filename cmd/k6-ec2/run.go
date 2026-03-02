@@ -35,10 +35,10 @@ func newRunCmd() *cobra.Command {
 				return err
 			}
 			logger.Info("loaded configuration",
-				"name", spec.Metadata.Name,
-				"parallelism", spec.Spec.Runner.Parallelism,
-				"instanceType", spec.Spec.Runner.InstanceType,
-				"spot", spec.Spec.Runner.Spot.Enabled,
+				"name", spec.Name,
+				"parallelism", spec.Runner.Parallelism,
+				"instanceType", spec.Runner.InstanceType,
+				"spot", spec.Runner.Spot.Enabled,
 			)
 
 			r, err := runner.New(spec, logger)
@@ -58,7 +58,7 @@ func newRunCmd() *cobra.Command {
 				cancel()
 			}()
 
-			if !noLogs && spec.Spec.Execution.IsSSMEnabled() {
+			if !noLogs && spec.Execution.IsSSMEnabled() {
 				awsCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(r.Region()))
 				if err == nil {
 					mon := monitor.NewLogMonitor(
@@ -68,7 +68,7 @@ func newRunCmd() *cobra.Command {
 					logCtx, logCancel := context.WithCancel(ctx)
 					defer logCancel()
 					go func() {
-						_ = mon.StreamLogs(logCtx, spec.Metadata.Name, func(e monitor.LogEvent) {
+						_ = mon.StreamLogs(logCtx, spec.Name, func(e monitor.LogEvent) {
 							fmt.Printf("[%s] [%s] %s\n", e.Timestamp.Format("15:04:05"), e.RunnerID, e.Message)
 						})
 					}()

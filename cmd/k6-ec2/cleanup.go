@@ -112,22 +112,17 @@ With --force, instances are terminated regarless of the cleanup policy.`,
 }
 
 // minimalConfig is used when --force is specified without a config file.
-const minimalConfig = `apiVersion: k6-ec2.io/v1alpha1
-kind: EC2TestRun
-metadata:
-  name: cleanup
-spec:
-  script:
-    localFile: /dev/null
-  runner:
-    instanceType: t3.micro
-    parallelism: 1
-  execution:
-    subnets:
-      - subnet-placeholder
-    securityGroups:
-      - sg-placeholder
-    region: us-east-1
-  cleanup:
-    policy: always
+const minimalConfig = `name: cleanup
+script:
+  localFile: /dev/null
+runner:
+  instanceType: t3.micro
+  parallelism: 1
+execution:
+  subnets:
+    - subnet-placeholder
+  securityGroups:
+    - sg-placeholder
+  region: us-east-1
+cleanup: always
 `
