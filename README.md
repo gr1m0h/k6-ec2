@@ -1,6 +1,8 @@
-# k6-ec2
+<p align="center">
+  <img src="images/logo.svg" alt="k6-ec2" width="300">
+</p>
 
-A CLI tool that runs k6 load tests on EC2 instances as seamlessly as running k6 locally. It abstracts away SSM connections and automates the entire workflow — from script upload to instance cleanup.
+<p align="center">A CLI tool that runs k6 load tests on EC2 instances as seamlessly as running k6 locally.<br>It abstracts away SSM connections and automates the entire workflow — from script upload to instance cleanup.</p>
 
 ## How It Works
 
@@ -23,6 +25,10 @@ Elastic IP (optional)                |
 **CLI** orchestrates per-test EC2 instances. It launches instances, runs k6 via SSM, streams logs, and terminates instances when done.
 
 Both are required. The Terraform Module sets up the foundation; the CLI runs on top of it.
+
+<p align="center">
+  <img src="images/architecture.svg" alt="k6-ec2 Architecture" width="800">
+</p>
 
 ## Features
 
