@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gr1m0h/k6-ec2/internal/config"
-	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
 const DefaultStateFile = ".k6-ec2-state.json"
@@ -16,7 +15,6 @@ const DefaultStateFile = ".k6-ec2-state.json"
 type PipelineState struct {
 	TestName      string                  `json:"testName"`
 	Region        string                  `json:"region"`
-	ScriptS3      *types.S3Location       `json:"scriptS3,omitempty"`
 	AMI           string                  `json:"ami,omitempty"`
 	Instances     []config.InstanceStatus `json:"instances,omitempty"`
 	SpotCount     int                     `json:"spotCount,omitempty"`

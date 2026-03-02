@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gr1m0h/k6-ec2/internal/config"
-	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
 func TestPipelineState_InstanceIDs(t *testing.T) {
@@ -63,11 +62,7 @@ func TestSaveAndLoadState(t *testing.T) {
 	original := &PipelineState{
 		TestName: "my-test",
 		Region:   "ap-northeast-1",
-		ScriptS3: &types.S3Location{
-			Bucket: "test-bucket",
-			Key:    "scripts/test.js",
-		},
-		AMI: "ami-0123456789abcdef0",
+		AMI:      "ami-0123456789abcdef0",
 		Instances: []config.InstanceStatus{
 			{InstanceID: "i-abc123", RunnerID: 0, State: "running"},
 			{InstanceID: "i-def456", RunnerID: 1, State: "running"},
@@ -109,12 +104,6 @@ func TestSaveAndLoadState(t *testing.T) {
 	}
 	if loaded.FallbackCount != original.FallbackCount {
 		t.Errorf("FallbackCount = %d, want %d", loaded.FallbackCount, original.FallbackCount)
-	}
-	if loaded.ScriptS3 == nil {
-		t.Fatal("ScriptS3 is nil")
-	}
-	if loaded.ScriptS3.Bucket != "test-bucket" || loaded.ScriptS3.Key != "scripts/test.js" {
-		t.Errorf("ScriptS3 = %+v, want bucket=test-bucket key=scripts/test.js", loaded.ScriptS3)
 	}
 	if len(loaded.Instances) != 2 {
 		t.Fatalf("len(Instances) = %d, want 2", len(loaded.Instances))

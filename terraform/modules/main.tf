@@ -2,45 +2,7 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  tags        = merge(var.tags, { "managed-by" = "k6-ec2" })
-  bucket_name = var.script_bucket_name != "" ? var.script_bucket_name : "${var.name}-scripts-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
-}
-
-# S3 Bucket for Scripts
-resource "aws_s3_bucket" "scripts" {
-  bucket = local.bucket_name
-  tags   = local.tags
-}
-
-resource "aws_s3_bucket_lifecycle_configuration" "scripts" {
-  bucket = aws_s3_bucket.scripts.id
-  rule {
-    id     = "cleanup"
-    status = "Enabled"
-    filter {
-      prefix = "k6-ec2/"
-    }
-    expiration {
-      days = var.s3_expiration_days
-    }
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "scripts" {
-  bucket = aws_s3_bucket.scripts.id
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "scripts" {
-  bucket                  = aws_s3_bucket.scripts.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+  tags = merge(var.tags, { "managed-by" = "k6-ec2" })
 }
 
 # IAM: EC2 Instance Role
@@ -67,22 +29,6 @@ resource "aws_iam_instance_profile" "runner" {
   tags = local.tags
 }
 
-# S3: Download scripts
-resource "aws_iam_role_policy" "runner_s3" {
-  name = "${var.name}-runner-s3"
-  role = aws_iam_role.runner.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow",
-        Action   = ["s3:GetObject"],
-        Resource = "${aws_s3_bucket.scripts.arn}/*"
-      }
-    ]
-  })
-}
-
 # SSM: Managed instance core (for SSM Run Command)
 resource "aws_iam_role_policy_attachment" "runner_ssm" {
   role       = aws_iam_role.runner.name
@@ -100,27 +46,6 @@ resource "aws_iam_role_policy" "runner_logs" {
         Effect   = "Allow",
         Action   = ["logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "${aws_cloudwatch_log_group.k6.arn}:*"
-      }
-    ]
-  })
-}
-
-# EC2: Self-tagging (for user-data mode exit code reporting)
-resource "aws_iam_role_policy" "runner_tags" {
-  name = "${var.name}-runner-tags"
-  role = aws_iam_role.runner.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow",
-        Action   = ["ec2:CreateTags"],
-        Resource = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:instance/*"
-        Condition = {
-          StringEquals = {
-            "ec2:ResourceTag/k6-ec2/managed-by" = "k6-ec2"
-          }
-        }
       }
     ]
   })
@@ -166,12 +91,6 @@ resource "aws_iam_policy" "cli" {
         Effect   = "Allow",
         Action   = ["ssm:SendCommand", "ssm:GetCommandInvocation", "ssm:CancelCommand", "ssm:DescribeInstanceInformation"]
         Resource = "*"
-      },
-      {
-        Sid      = "S3Scripts"
-        Effect   = "Allow",
-        Action   = ["s3:PutObject", "s3:GetObject"]
-        Resource = "${aws_s3_bucket.scripts.arn}/*"
       },
       {
         Sid      = "IAMPassRole"

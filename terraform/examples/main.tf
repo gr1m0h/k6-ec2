@@ -43,7 +43,6 @@ module "k6_ec2" {
   enable_spot            = var.enable_spot
   allowed_instance_types = var.allowed_instance_types
   log_retention_days     = var.log_retention_days
-  s3_expiration_days     = var.s3_expiration_days
   eip_count              = var.eip_count
   tags                   = var.tags
 }

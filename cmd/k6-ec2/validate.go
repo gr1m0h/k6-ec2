@@ -23,7 +23,6 @@ func newValidateCmd() *cobra.Command {
 			fmt.Printf("  Parallelism:   %d\n", spec.Runner.Parallelism)
 			fmt.Printf("  Instance Type: %s\n", spec.Runner.InstanceType)
 			fmt.Printf("  Spot:          %v\n", spec.Runner.Spot.Enabled)
-			fmt.Printf("  SSM:           %v\n", spec.Execution.IsSSMEnabled())
 			fmt.Printf("  Subnets:       %d\n", len(spec.Execution.Subnets))
 			return nil
 		},

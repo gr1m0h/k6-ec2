@@ -21,7 +21,6 @@ type Command string
 
 const (
 	CommandRun      Command = "run"
-	CommandPrepare  Command = "prepare"
 	CommandLaunch   Command = "launch"
 	CommandExecute  Command = "execute"
 	CommandCleanup  Command = "cleanup"
@@ -95,20 +94,10 @@ type ExecutionSpec struct {
 	Region string `yaml:"region,omitempty"`
 	// Timeout is the maximum duration for the test run.
 	Timeout string `yaml:"timeout,omitempty"`
-	// SSMEnabled controls whether SSM Run Command is used (defaults to true).
-	SSMEnabled *bool `yaml:"ssmEnabled,omitempty"`
 	// EIPAllocationIDs are pre-allocated Elastic IP allocation IDs to associate
 	// with runner instances. Required for WAF IP-based allowlisting.
 	// Length must be >= spec.runner.parallelism when set.
 	EIPAllocationIDs []string `yaml:"eipAllocationIDs,omitempty"`
-}
-
-// IsSSMEnabled returns whether SSM execution is enabled (defaults to true).
-func (e *ExecutionSpec) IsSSMEnabled() bool {
-	if e.SSMEnabled == nil {
-		return true
-	}
-	return *e.SSMEnabled
 }
 
 // InstanceStatus represents the status of a single EC2 instance.
@@ -203,8 +192,6 @@ func applyOverrides(cfg *Config, overrides *Overrides) {
 
 func validateForCommand(cfg *Config, cmd Command) error {
 	switch cmd {
-	case CommandPrepare:
-		return validatePrepare(cfg)
 	case CommandLaunch:
 		return validateLaunch(cfg)
 	case CommandExecute:
@@ -214,16 +201,6 @@ func validateForCommand(cfg *Config, cmd Command) error {
 	default:
 		return validate(cfg)
 	}
-}
-
-func validatePrepare(cfg *Config) error {
-	if err := types.ValidateName(cfg.Name); err != nil {
-		return err
-	}
-	if err := types.ValidateScript(&cfg.Script); err != nil {
-		return fmt.Errorf("script: %w", err)
-	}
-	return nil
 }
 
 func validateLaunch(cfg *Config) error {
@@ -248,6 +225,9 @@ func validateLaunch(cfg *Config) error {
 func validateExecute(cfg *Config) error {
 	if err := types.ValidateName(cfg.Name); err != nil {
 		return err
+	}
+	if err := types.ValidateScript(&cfg.Script); err != nil {
+		return fmt.Errorf("script: %w", err)
 	}
 	if err := types.ValidateTimeout(cfg.Execution.Timeout); err != nil {
 		return fmt.Errorf("execution.timeout: %w", err)

@@ -11,20 +11,14 @@ import (
 	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
-// Prepare resolves the test script (uploading to S3 if needed) and the AMI.
+// Prepare resolves the AMI for EC2 instances.
 // It returns a PrepareResult that can be passed to Launch.
 func (r *Runner) Prepare(ctx context.Context) (*PrepareResult, error) {
 	r.setPhase(types.PhaseCreating)
 
-	loc, err := r.scripts.Resolve(ctx, &r.spec.Script, r.spec.Name)
-	if err != nil {
-		return nil, fmt.Errorf("script preparation failed: %w", err)
-	}
-	r.scriptS3 = loc
-	r.logger.Info("script ready", "bucket", loc.Bucket, "key", loc.Key)
-
 	ami := r.spec.Runner.AMI
 	if ami == "" {
+		var err error
 		ami, err = r.resolveLatestAMI(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("AMI resolution failed: %w", err)
@@ -33,8 +27,7 @@ func (r *Runner) Prepare(ctx context.Context) (*PrepareResult, error) {
 	}
 
 	return &PrepareResult{
-		ScriptS3: loc,
-		AMI:      ami,
+		AMI: ami,
 	}, nil
 }
 

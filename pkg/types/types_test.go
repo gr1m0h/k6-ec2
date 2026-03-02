@@ -34,8 +34,8 @@ func TestValidateScript(t *testing.T) {
 			false,
 		},
 		{
-			"s3 only",
-			&ScriptSpec{S3: "s3://bucket/key"},
+			"localDir with entrypoint",
+			&ScriptSpec{LocalDir: "./scripts", Entrypoint: "main.js"},
 			false,
 		},
 		{
@@ -49,18 +49,23 @@ func TestValidateScript(t *testing.T) {
 			true,
 		},
 		{
-			"two sources localFile and s3",
-			&ScriptSpec{LocalFile: "./test.js", S3: "s3://bucket/key"},
+			"two sources localFile and localDir",
+			&ScriptSpec{LocalFile: "./test.js", LocalDir: "./scripts", Entrypoint: "main.js"},
 			true,
 		},
 		{
-			"two sources s3 and inline",
-			&ScriptSpec{S3: "s3://bucket/key", Inline: "test"},
+			"two sources localDir and inline",
+			&ScriptSpec{LocalDir: "./scripts", Entrypoint: "main.js", Inline: "test"},
 			true,
 		},
 		{
-			"all three sources",
-			&ScriptSpec{LocalFile: "./test.js", S3: "s3://bucket/key", Inline: "test"},
+			"localDir without entrypoint",
+			&ScriptSpec{LocalDir: "./scripts"},
+			true,
+		},
+		{
+			"entrypoint without localDir",
+			&ScriptSpec{LocalFile: "./test.js", Entrypoint: "main.js"},
 			true,
 		},
 	}

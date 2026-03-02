@@ -2,19 +2,20 @@ package runner
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/gr1m0h/k6-ec2/internal/config"
 	"github.com/gr1m0h/k6-ec2/pkg/output"
+	"github.com/gr1m0h/k6-ec2/pkg/script"
 	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
-// Execute runs k6 on the given instances via SSM or waits for UserData completion.
+// Execute runs k6 on the given instances via SSM SendCommand.
 // If params is provided with InstanceIDs, those are used; otherwise the runner's
 // internally tracked instances are used.
 func (r *Runner) Execute(ctx context.Context, params *ExecuteParams) (*ExecuteResult, error) {
@@ -31,22 +32,25 @@ func (r *Runner) Execute(ctx context.Context, params *ExecuteParams) (*ExecuteRe
 		}
 	}
 
-	if r.spec.Execution.IsSSMEnabled() {
-		if err := r.waitForSSMReady(ctx); err != nil {
-			return nil, fmt.Errorf("SSM readiness wait failed: %w", err)
+	// Resolve script payload if not already provided
+	if params.ScriptPayload == nil {
+		payload, err := r.scripts.Resolve(&r.spec.Script)
+		if err != nil {
+			return nil, fmt.Errorf("script resolution failed: %w", err)
 		}
+		params.ScriptPayload = payload
+	}
 
-		if err := r.executeViaSSM(ctx, params); err != nil {
-			return nil, fmt.Errorf("SSM execution failed: %w", err)
-		}
+	if err := r.waitForSSMReady(ctx); err != nil {
+		return nil, fmt.Errorf("SSM readiness wait failed: %w", err)
+	}
 
-		if err := r.waitForSSMCompletion(ctx); err != nil {
-			return nil, fmt.Errorf("SSM monitoring failed: %w", err)
-		}
-	} else {
-		if err := r.waitForInstanceCompletion(ctx); err != nil {
-			return nil, fmt.Errorf("instance monitoring failed: %w", err)
-		}
+	if err := r.executeViaSSM(ctx, params); err != nil {
+		return nil, fmt.Errorf("SSM execution failed: %w", err)
+	}
+
+	if err := r.waitForSSMCompletion(ctx); err != nil {
+		return nil, fmt.Errorf("SSM monitoring failed: %w", err)
 	}
 
 	return &ExecuteResult{
@@ -101,13 +105,21 @@ func (r *Runner) waitForSSMReady(ctx context.Context) error {
 func (r *Runner) executeViaSSM(ctx context.Context, params *ExecuteParams) error {
 	r.logger.Info("executing k6 via SSM Run Command")
 
-	cmd := output.BuildK6Command(&r.spec.Output, "/tmp/test.js", r.spec.Runner.Arguments)
+	payload := params.ScriptPayload
+	encoded := base64.StdEncoding.EncodeToString(payload.Content)
 
-	// For external instances, prepend S3 script download
-	if params != nil && params.ExternalInstances && params.ScriptS3 != nil {
-		downloadCmd := fmt.Sprintf("aws s3 cp s3://%s/%s /tmp/test.js", params.ScriptS3.Bucket, params.ScriptS3.Key)
-		cmd = downloadCmd + " && " + cmd
+	// Build script deployment command
+	var deployCmd string
+	if payload.IsArchive {
+		deployCmd = fmt.Sprintf("mkdir -p %s && echo '%s' | base64 -d | tar xzf - -C %s",
+			script.ArchiveBaseDir, encoded, script.ArchiveBaseDir)
+	} else {
+		deployCmd = fmt.Sprintf("echo '%s' | base64 -d | gunzip > %s",
+			encoded, payload.Entrypoint)
 	}
+
+	k6Cmd := output.BuildK6Command(&r.spec.Output, payload.Entrypoint, r.spec.Runner.Arguments)
+	cmd := deployCmd + " && " + k6Cmd
 
 	res, err := r.ssmClient.SendCommand(ctx, &ssm.SendCommandInput{
 		InstanceIds:  r.instanceIDs(),
@@ -179,71 +191,4 @@ func (r *Runner) waitForSSMCompletion(ctx context.Context) error {
 			}
 		}
 	}
-}
-
-func (r *Runner) waitForInstanceCompletion(ctx context.Context) error {
-	r.logger.Info("monitoring instance completion (user-data mode)...")
-
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			if err := r.refreshInstanceStatus(ctx); err != nil {
-				r.logger.Warn("failed to refresh instance status", "error", err)
-				continue
-			}
-
-			allCompleted := true
-			for _, inst := range r.instances {
-				if inst.ExitCode == nil {
-					allCompleted = false
-				}
-			}
-
-			if allCompleted {
-				r.logger.Info("all instances completed")
-				return nil
-			}
-		}
-	}
-}
-
-func (r *Runner) refreshInstanceStatus(ctx context.Context) error {
-	res, err := r.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-		InstanceIds: r.instanceIDs(),
-	})
-	if err != nil {
-		return err
-	}
-
-	for _, reservation := range res.Reservations {
-		for _, inst := range reservation.Instances {
-			id := aws.ToString(inst.InstanceId)
-			for i := range r.instances {
-				if r.instances[i].InstanceID == id {
-					r.instances[i].State = string(inst.State.Name)
-					if inst.PublicIpAddress != nil {
-						r.instances[i].PublicIP = aws.ToString(inst.PublicIpAddress)
-					}
-					if inst.PrivateIpAddress != nil {
-						r.instances[i].PrivateIP = aws.ToString(inst.PrivateIpAddress)
-					}
-					// Check exit code tag
-					for _, tag := range inst.Tags {
-						if aws.ToString(tag.Key) == "k6-ec2/exit-code" {
-							code := 0
-							fmt.Sscanf(aws.ToString(tag.Value), "%d", &code)
-							r.instances[i].ExitCode = &code
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return nil
 }

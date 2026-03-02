@@ -1,8 +1,3 @@
-output "script_bucket" {
-  description = "S3 bucket name for k6 scripts. Maps to k6_EC2_SCRIPT_BUCKET env var."
-  value       = aws_s3_bucket.scripts.id
-}
-
 output "instance_profile_name" {
   description = "IAM instance profile name for k6 runners. Maps to spec.runner.iamInstanceProfile."
   value       = aws_iam_instance_profile.runner.name
@@ -79,7 +74,6 @@ output "sample_config" {
       securityGroups: ["${aws_security_group.k6.id}"]
       assignPublicIP: true
       region: ${data.aws_region.current.name}
-      ssmEnabled: true
 %{if var.eip_count > 0~}
       eipAllocationIDs: ${jsonencode(aws_eip.k6[*].allocation_id)}
 %{else~}

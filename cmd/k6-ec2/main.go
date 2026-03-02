@@ -26,8 +26,8 @@ func newRootCmd() *cobra.Command {
 
 Run k6 directly on EC2 instances with Spot Instance support, SSM-based execution, and automatic lifecycle management, No ECS cluster required.
 
-Pipeline commands: prepare -> launch -> execute -> cleanup
-Or use 'run' or a single-command full lifecycle.
+Pipeline commands: launch -> execute -> cleanup
+Or use 'run' for a single-command full lifecycle.
 
 See also: k6-ecs for running on ECS Fargate/EC2 launch type.`,
 		SilenceUsage: true,
@@ -36,7 +36,6 @@ See also: k6-ecs for running on ECS Fargate/EC2 launch type.`,
 	root.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level(debug, info, warn, error)")
 	root.AddCommand(
 		newRunCmd(),
-		newPrepareCmd(),
 		newLaunchCmd(),
 		newExecuteCmd(),
 		newCleanupCmd(),
@@ -117,7 +116,6 @@ execution:
   assignPublicIP: true
   region: ap-northeast-1
   timeout: 30m
-  ssmEnabled: true
   # Uncomment to associate pre-allocated EIPs for WAF IP-based allowlisting.
   # Length must be >= runner.parallelism.
   # eipAllocationIDs:

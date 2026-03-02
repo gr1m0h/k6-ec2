@@ -7,9 +7,10 @@ import (
 
 // ScriptSpec defines the k6 test script source.
 type ScriptSpec struct {
-	LocalFile string `yaml:"localFile,omitempty" json:"localFile,omitempty"`
-	S3        string `yaml:"s3,omitempty" json:"s3,omitempty"`
-	Inline    string `yaml:"inline,omitempty" json:"inline,omitempty"`
+	LocalFile  string `yaml:"localFile,omitempty" json:"localFile,omitempty"`
+	LocalDir   string `yaml:"localDir,omitempty" json:"localDir,omitempty"`
+	Entrypoint string `yaml:"entrypoint,omitempty" json:"entrypoint,omitempty"`
+	Inline     string `yaml:"inline,omitempty" json:"inline,omitempty"`
 }
 
 // OutputSpec defines output configuration for k6 metrics.
@@ -22,12 +23,6 @@ type StatsDSpec struct {
 	Address     string `yaml:"address,omitempty" json:"address,omitempty"`
 	EnabledTags bool   `yaml:"enabledTags,omitempty" json:"enabledTags,omitempty"`
 	Namespace   string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
-}
-
-// S3Location represents an object in S3.
-type S3Location struct {
-	Bucket string `json:"bucket"`
-	Key    string `json:"key"`
 }
 
 // TestRunPhase represents the current phase of a test run.
@@ -73,17 +68,23 @@ func ValidateScript(s *ScriptSpec) error {
 	if s.LocalFile != "" {
 		count++
 	}
-	if s.S3 != "" {
+	if s.LocalDir != "" {
 		count++
 	}
 	if s.Inline != "" {
 		count++
 	}
 	if count == 0 {
-		return fmt.Errorf("one of localFile, s3, or inline is required")
+		return fmt.Errorf("one of localFile, localDir, or inline is required")
 	}
 	if count > 1 {
-		return fmt.Errorf("only one of localFile, s3, or inline can be specified")
+		return fmt.Errorf("only one of localFile, localDir, or inline can be specified")
+	}
+	if s.LocalDir != "" && s.Entrypoint == "" {
+		return fmt.Errorf("entrypoint is required when using localDir")
+	}
+	if s.LocalDir == "" && s.Entrypoint != "" {
+		return fmt.Errorf("entrypoint can only be used with localDir")
 	}
 	return nil
 }

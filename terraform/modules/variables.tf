@@ -19,12 +19,6 @@ variable "subnet_ids" {
   }
 }
 
-variable "script_bucket_name" {
-  description = "Custom S3 bucket name for k6 scripts. If empty, a name is auto-generated from account ID and region."
-  type        = string
-  default     = ""
-}
-
 variable "enable_spot" {
   description = "Whether to enable Spot Instances in the sample config output."
   type        = bool
@@ -53,12 +47,6 @@ variable "log_retention_days" {
   description = "Number of days to retain CloudWatch log events."
   type        = number
   default     = 14
-}
-
-variable "s3_expiration_days" {
-  description = "Number of days after whitch S3 objects under the k6-ec2/ prefix are automatically deleted."
-  type        = number
-  default     = 30
 }
 
 variable "eip_count" {

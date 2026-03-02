@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	ec2config "github.com/gr1m0h/k6-ec2/internal/config"
 	"github.com/gr1m0h/k6-ec2/internal/runner"
@@ -20,9 +21,9 @@ func newLaunchCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "launch",
-		Short: "Launch EC2 instances for a test run",
-		Long: `Launches EC2 instances using the AMI and script location from the state file.
-Requires a prior 'prepare' step.`,
+		Short: "Resolve AMI and launch EC2 instances for a test run",
+		Long: `Resolves the AMI (auto-detects latest Amazon Linux 2023 if not specified)
+and launches EC2 instances. Writes a state file for subsequent pipeline commands.`,
 		Example: `  k6-ec2 launch -f testrun.yaml
   k6-ec2 launch -f testrun.yaml --state /tmp/state.json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -31,11 +32,6 @@ Requires a prior 'prepare' step.`,
 			spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandLaunch, buildOverrides(cmd))
 			if err != nil {
 				return err
-			}
-
-			state, err := runner.LoadState(stateFile)
-			if err != nil {
-				return fmt.Errorf("state file required (run 'prepare' first): %w", err)
 			}
 
 			r, err := runner.New(spec, logger)
@@ -50,30 +46,43 @@ Requires a prior 'prepare' step.`,
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			go func() { <-sigCh; cancel() }()
 
+			prep, err := r.Prepare(ctx)
+			if err != nil {
+				return err
+			}
+
 			lr, err := r.Launch(ctx, &runner.LaunchParams{
-				AMI:      state.AMI,
-				ScriptS3: state.ScriptS3,
+				AMI: prep.AMI,
 			})
 			if err != nil {
 				return err
 			}
 
-			state.Instances = lr.Instances
-			state.SpotCount = lr.SpotCount
-			state.FallbackCount = lr.FallbackCount
-			state.Phase = "launched"
+			state := &runner.PipelineState{
+				TestName:      spec.Name,
+				Region:        r.Region(),
+				AMI:           prep.AMI,
+				Instances:     lr.Instances,
+				SpotCount:     lr.SpotCount,
+				FallbackCount: lr.FallbackCount,
+				LogGroup:      r.LogGroup(),
+				Phase:         "launched",
+				CreatedAt:     time.Now(),
+			}
 
 			if err := runner.SaveState(stateFile, state); err != nil {
 				return err
 			}
 
 			fmt.Printf("✓ Launch complete\n")
+			fmt.Printf("  AMI:       %s\n", prep.AMI)
 			fmt.Printf("  Instances: %d\n", len(lr.Instances))
 			fmt.Printf("  Spot:      %d\n", lr.SpotCount)
 			fmt.Printf("  Fallback:  %d\n", lr.FallbackCount)
 			for _, inst := range lr.Instances {
 				fmt.Printf("  - %s (runner-%d)\n", inst.InstanceID, inst.RunnerID)
 			}
+			fmt.Printf("  State:     %s\n", stateFile)
 			return nil
 		},
 	}

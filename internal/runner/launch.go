@@ -18,7 +18,6 @@ import (
 // Launch starts EC2 instances using the given parameters.
 // It returns a LaunchResult with instance details.
 func (r *Runner) Launch(ctx context.Context, params *LaunchParams) (*LaunchResult, error) {
-	r.scriptS3 = params.ScriptS3
 	r.setPhase(types.PhaseStarted)
 
 	if err := r.launchInstances(ctx, params.AMI); err != nil {
@@ -173,28 +172,11 @@ func (r *Runner) buildUserData(runnerID int32) string {
 	sb.WriteString("mv k6-*/k6 /usr/local/bin/k6 2>/dev/null || mv k6 /usr/local/bin/k6\n")
 	sb.WriteString("chmod +x /usr/local/bin/k6\n")
 
-	// Download script from S3
-	sb.WriteString("\n# Download test script\n")
-	sb.WriteString(fmt.Sprintf("aws s3 cp s3://%s/%s /tmp/test.js\n", r.scriptS3.Bucket, r.scriptS3.Key))
-
 	// Extra user data
 	if r.spec.Runner.UserDataExtra != "" {
 		sb.WriteString("\n# Extra user data\n")
 		sb.WriteString(r.spec.Runner.UserDataExtra)
 		sb.WriteString("\n")
-	}
-
-	// Run k6 (only for non-SSM mode)
-	if !r.spec.Execution.IsSSMEnabled() {
-		sb.WriteString("\n# Run k6\n")
-		cmd := output.BuildK6Command(&r.spec.Output, "/tmp/test.js", r.spec.Runner.Arguments)
-		sb.WriteString(fmt.Sprintf("EXIT_CODE=0\n%s || EXIT_CODE=$?\n", cmd))
-
-		// Tag instance with exit code
-		sb.WriteString("\n# Report status\n")
-		sb.WriteString("INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)\n")
-		sb.WriteString("REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)\n")
-		sb.WriteString("aws ec2 create-tags --region $REGION --resources $INSTANCE_ID --tags Key=k6-ec2/exit-code,Value=$EXIT_CODE Key=k6-ec2/status,Value=completed\n")
 	}
 
 	return sb.String()

@@ -2,19 +2,17 @@ package runner
 
 import (
 	"github.com/gr1m0h/k6-ec2/internal/config"
-	"github.com/gr1m0h/k6-ec2/pkg/types"
+	"github.com/gr1m0h/k6-ec2/pkg/script"
 )
 
 // PrepareResult contains the outputs of the prepare phase.
 type PrepareResult struct {
-	ScriptS3 *types.S3Location `json:"scriptS3"`
-	AMI      string            `json:"ami"`
+	AMI string `json:"ami"`
 }
 
 // LaunchParams contains the inputs for the launch phase.
 type LaunchParams struct {
-	AMI      string            `json:"ami"`
-	ScriptS3 *types.S3Location `json:"scriptS3"`
+	AMI string `json:"ami"`
 }
 
 // LaunchResult contains the outputs of the launch phase.
@@ -26,9 +24,9 @@ type LaunchResult struct {
 
 // ExecuteParams contains the inputs for the execute phase.
 type ExecuteParams struct {
-	InstanceIDs       []string          `json:"instanceIds"`
-	ScriptS3          *types.S3Location `json:"scriptS3,omitempty"`
-	ExternalInstances bool              `json:"externalInstances,omitempty"`
+	InstanceIDs       []string        `json:"instanceIds"`
+	ScriptPayload     *script.Payload `json:"-"`
+	ExternalInstances bool            `json:"externalInstances,omitempty"`
 }
 
 // ExecuteResult contains the outputs of the execute phase.

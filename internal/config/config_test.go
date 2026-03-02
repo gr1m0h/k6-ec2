@@ -59,9 +59,6 @@ execution:
 	if cfg.Cleanup != DefaultCleanup {
 		t.Errorf("expected cleanup %q, got %q", DefaultCleanup, cfg.Cleanup)
 	}
-	if !cfg.Execution.IsSSMEnabled() {
-		t.Error("expected SSM enabled by default")
-	}
 }
 
 func TestParse_MissingName(t *testing.T) {
@@ -164,21 +161,6 @@ execution:
 	}
 }
 
-func TestParseForCommand_Prepare_NoSubnetsOK(t *testing.T) {
-	yaml := `
-name: test
-script:
-  inline: "test"
-`
-	cfg, err := ParseForCommand([]byte(yaml), CommandPrepare, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cfg.Name != "test" {
-		t.Errorf("expected name 'test', got %q", cfg.Name)
-	}
-}
-
 func TestParseForCommand_Launch_RequiresSubnets(t *testing.T) {
 	yaml := `
 name: test
@@ -268,21 +250,6 @@ execution:
 	}
 }
 
-func TestIsSSMEnabled_DefaultTrue(t *testing.T) {
-	e := ExecutionSpec{}
-	if !e.IsSSMEnabled() {
-		t.Error("expected SSM enabled by default")
-	}
-}
-
-func TestIsSSMEnabled_ExplicitFalse(t *testing.T) {
-	f := false
-	e := ExecutionSpec{SSMEnabled: &f}
-	if e.IsSSMEnabled() {
-		t.Error("expected SSM disabled")
-	}
-}
-
 func TestParseForCommand_Cleanup_ValidPolicy(t *testing.T) {
 	yaml := `
 name: test
@@ -325,27 +292,6 @@ cleanup: never
 	}
 	if cfg.Cleanup != "never" {
 		t.Errorf("expected cleanup 'never', got %q", cfg.Cleanup)
-	}
-}
-
-func TestParseForCommand_Prepare_MissingName(t *testing.T) {
-	yaml := `
-script:
-  inline: "test"
-`
-	_, err := ParseForCommand([]byte(yaml), CommandPrepare, nil)
-	if err == nil {
-		t.Fatal("expected error for missing name in prepare")
-	}
-}
-
-func TestParseForCommand_Prepare_MissingScript(t *testing.T) {
-	yaml := `
-name: test
-`
-	_, err := ParseForCommand([]byte(yaml), CommandPrepare, nil)
-	if err == nil {
-		t.Fatal("expected error for missing script in prepare")
 	}
 }
 
@@ -457,7 +403,7 @@ func TestParse_MultipleScriptSources(t *testing.T) {
 name: test
 script:
   inline: "test"
-  s3: s3://bucket/key
+  localFile: ./test.js
 execution:
   subnets: [subnet-abc]
 `

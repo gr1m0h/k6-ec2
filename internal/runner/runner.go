@@ -4,14 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/gr1m0h/k6-ec2/internal/config"
 	"github.com/gr1m0h/k6-ec2/pkg/result"
@@ -24,14 +22,13 @@ type Runner struct {
 	spec      *config.Config
 	ec2Client *ec2.Client
 	ssmClient *ssm.Client
-	scripts   *script.Manager
+	scripts   *script.Resolver
 	logger    *slog.Logger
 
 	phase         types.TestRunPhase
 	startTime     *time.Time
 	endTime       *time.Time
 	instances     []config.InstanceStatus
-	scriptS3      *types.S3Location
 	commandID     string
 	spotCount     int
 	fallbackCount int
@@ -49,16 +46,11 @@ func New(spec *config.Config, logger *slog.Logger) (*Runner, error) {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
-	bucket := os.Getenv("K6_EC2_SCRIPT_BUCKET")
-	if bucket == "" {
-		bucket = fmt.Sprintf("k6-ec2-scripts-%s", spec.Execution.Region)
-	}
-
 	return &Runner{
 		spec:      spec,
 		ec2Client: ec2.NewFromConfig(cfg),
 		ssmClient: ssm.NewFromConfig(cfg),
-		scripts:   script.NewManager(s3.NewFromConfig(cfg), bucket, "k6-ec2"),
+		scripts:   script.NewResolver(),
 		logger:    logger,
 		phase:     types.PhaseInitializing,
 	}, nil
@@ -87,7 +79,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// Step 3-3b: Launch instances + associate EIPs
-	_, err = r.Launch(ctx, &LaunchParams{AMI: prep.AMI, ScriptS3: prep.ScriptS3})
+	_, err = r.Launch(ctx, &LaunchParams{AMI: prep.AMI})
 	if err != nil {
 		return r.fail(err)
 	}

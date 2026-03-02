@@ -58,7 +58,7 @@ func newRunCmd() *cobra.Command {
 				cancel()
 			}()
 
-			if !noLogs && spec.Execution.IsSSMEnabled() {
+			if !noLogs {
 				awsCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(r.Region()))
 				if err == nil {
 					mon := monitor.NewLogMonitor(

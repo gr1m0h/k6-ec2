@@ -20,13 +20,13 @@ type LogEvent struct {
 
 // LogMonitor streams and retrieves CloudWatch Logs for a test run.
 type LogMonitor struct {
-	client   *cloudwatchlogs.Client
+	client   FilterLogEventsAPI
 	logGroup string
 	logger   *slog.Logger
 }
 
 // NewLogMonitor creates a new LogMonitor.
-func NewLogMonitor(client *cloudwatchlogs.Client, logGroup string, logger *slog.Logger) *LogMonitor {
+func NewLogMonitor(client FilterLogEventsAPI, logGroup string, logger *slog.Logger) *LogMonitor {
 	return &LogMonitor{
 		client:   client,
 		logGroup: logGroup,
