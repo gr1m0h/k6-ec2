@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 350" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="gradSub" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Top arrow bar -->
+  <path d="M 146 80 H 272 L 294 94 L 272 108 H 146 A 14 14 0 0 0 146 80 Z" fill="url(#gradSub)" opacity="0.7"/>
+
+  <!-- Middle arrow bar (main) -->
+  <path d="M 102 120 H 312 L 338 138 L 312 156 H 102 A 18 18 0 0 0 102 120 Z" fill="url(#grad)"/>
+
+  <!-- Bottom arrow bar -->
+  <path d="M 146 166 H 272 L 294 180 L 272 194 H 146 A 14 14 0 0 0 146 166 Z" fill="url(#gradSub)" opacity="0.7"/>
+
+  <!-- EC2 instance nodes -->
+  <circle cx="306" cy="94" r="6" fill="#f97316" opacity="0.85"/>
+  <circle cx="350" cy="138" r="7" fill="#ea580c"/>
+  <circle cx="306" cy="180" r="6" fill="#f97316" opacity="0.85"/>
+
+  <!-- Wordmark -->
+  <text x="220" y="275" fill="#1e293b" font-size="60" font-weight="800" text-anchor="middle" letter-spacing="-2">k6-ec2</text>
+
+  <!-- Tagline -->
+  <text x="220" y="312" fill="#64748b" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="5">DISTRIBUTED LOAD TESTING</text>
+</svg>
