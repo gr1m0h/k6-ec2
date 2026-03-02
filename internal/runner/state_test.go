@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/k6-distributed/k6-aws-common/pkg/types"
-	"github.com/k6-distributed/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
 func TestPipelineState_InstanceIDs(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gr1m0h/k6-ec2/pkg/types"
 	"gopkg.in/yaml.v2"
 )
 
@@ -16,7 +17,7 @@ const (
 	DefaultTimeout      = "30m"
 )
 
-// TestRunSpec defines the complate EC2-based test run.
+// TestRunSpec defines the complete EC2-based test run.
 type TestRunSpec struct {
 	APIVersion string         `yaml:"apiVersion"`
 	Kind       string         `yaml:"kind"`
@@ -24,7 +25,7 @@ type TestRunSpec struct {
 	Spec       TestRunDetail  `yaml:"spec"`
 }
 
-// testRunDetail contains the EC2-specific configuration.
+// TestRunDetail contains the EC2-specific configuration.
 type TestRunDetail struct {
 	Script    types.ScriptSpec  `yaml:"script"`
 	Runner    RunnerSpec        `yaml:"runner"`
@@ -35,24 +36,24 @@ type TestRunDetail struct {
 
 // RunnerSpec defines the EC2 runner configuration.
 type RunnerSpec struct {
-	// AMI in the Amazon Machine Image ID. Defaults to latest Amazon Linux 2023.
+	// AMI is the Amazon Machine Image ID. Defaults to latest Amazon Linux 2023.
 	AMI string `yaml:"ami,omitempty"`
-	// InstanceType is the EC2 instance type. Defalt: c5.xlarge.
+	// InstanceType is the EC2 instance type. Default: c5.xlarge.
 	InstanceType string `yaml:"instanceType,omitempty"`
 	// Parallelism is the number of EC2 instances to launch.
-	Parallelism int32 `yaml:"Parallelism"`
+	Parallelism int32 `yaml:"parallelism"`
 	// Spot configuration for using Spot Instances.
 	Spot SpotConfig `yaml:"spot,omitempty"`
 	// IAMInstanceProfile is the IAM instance profile name.
 	IAMInstanceProfile string `yaml:"iamInstanceProfile,omitempty"`
 	// RootVolumeSize in GiB. Default: 20.
-	RootVolumeSize int32 `yaml:"RootVolumeSize,omitempty"`
+	RootVolumeSize int32 `yaml:"rootVolumeSize,omitempty"`
 	// K6Version to install. Default: "latest".
-	K6Version string `yaml:"K6Version,omitempty"`
+	K6Version string `yaml:"k6Version,omitempty"`
 	// Env is a map of environment variables to pass to k6.
 	Env map[string]string `yaml:"env,omitempty"`
-	// Argument are additional CLI arguments passed to k6 run.
-	Arguments []string `yaml:"arguments,omitempty`
+	// Arguments are additional CLI arguments passed to k6 run.
+	Arguments []string `yaml:"arguments,omitempty"`
 	// UserDataExtra is additional shell script to run before k6.
 	UserDataExtra string `yaml:"userDataExtra,omitempty"`
 }
@@ -67,7 +68,7 @@ type SpotConfig struct {
 	FallbackToOnDemand bool `yaml:"fallbackToOnDemand,omitempty"`
 }
 
-// ExecutionSpec defines EC2-specific execution configuration
+// ExecutionSpec defines EC2-specific execution configuration.
 type ExecutionSpec struct {
 	// Subnets to launch instances into (distributed round-robin).
 	Subnets []string `yaml:"subnets"`
@@ -77,12 +78,14 @@ type ExecutionSpec struct {
 	AssignPublicIP bool `yaml:"assignPublicIP,omitempty"`
 	// Region is the AWS region.
 	Region string `yaml:"region,omitempty"`
-	// Timeout is the maximum duration via SSM Run Command (recommended).
+	// Timeout is the maximum duration for the test run.
+	Timeout string `yaml:"timeout,omitempty"`
+	// SSMEnabled controls whether SSM Run Command is used (defaults to true).
 	SSMEnabled *bool `yaml:"ssmEnabled,omitempty"`
 	// EIPAllocationIDs are pre-allocated Elastic IP allocation IDs to associate
-	// with runner instance . Required for WAF IP-based allowlisting.
+	// with runner instances. Required for WAF IP-based allowlisting.
 	// Length must be >= spec.runner.parallelism when set.
-	EIPAllocationIDs []string `yaml:"EIPAllocationIDs,omitempty"`
+	EIPAllocationIDs []string `yaml:"eipAllocationIDs,omitempty"`
 }
 
 // IsSSMEnabled returns whether SSM execution is enabled (defaults to true).
@@ -94,13 +97,13 @@ func (e *ExecutionSpec) IsSSMEnabled() bool {
 }
 
 // InstanceStatus represents the status of a single EC2 instance.
-type InstanceStauts struct {
+type InstanceStatus struct {
 	InstanceID string `json:"instanceId"`
 	PublicIP   string `json:"publicIp,omitempty"`
 	PrivateIP  string `json:"privateIp,omitempty"`
 	State      string `json:"state"`
-	ExitCode   *int   `json:"exitCode,omitempty`
-	RunnerID   int32  `json:"runnerId`
+	ExitCode   *int   `json:"exitCode,omitempty"`
+	RunnerID   int32  `json:"runnerId"`
 	SpotID     string `json:"spotId,omitempty"`
 }
 
@@ -113,8 +116,8 @@ func Load(path string) (*TestRunSpec, error) {
 	return Parse(data)
 }
 
-// Paarse parses a TestRunSpec from YAML bytes.
-func Parse(data []data) (*TestRunSpec, error) {
+// Parse parses a TestRunSpec from YAML bytes.
+func Parse(data []byte) (*TestRunSpec, error) {
 	var spec TestRunSpec
 	if err := yaml.Unmarshal(data, &spec); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
@@ -123,7 +126,7 @@ func Parse(data []data) (*TestRunSpec, error) {
 	applyDefaults(&spec)
 
 	if err := validate(&spec); err != nil {
-		return nil, fmt.Errorf("config validation failedL %w", err)
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 	return &spec, nil
 }

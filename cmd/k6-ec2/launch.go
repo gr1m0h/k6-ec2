@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	ec2config "github.com/k6-distributed/k6-ec2/internal/config"
-	"github.com/k6-distributed/k6-ec2/internal/runner"
+	ec2config "github.com/gr1m0h/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/internal/runner"
 	"github.com/spf13/cobra"
 )
 

@@ -9,9 +9,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
-	"github.com/k6-distributed/k6-aws-common/pkg/output"
-	"github.com/k6-distributed/k6-aws-common/pkg/types"
-	"github.com/k6-distributed/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/pkg/output"
+	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
 // Execute runs k6 on the given instances via SSM or waits for UserData completion.

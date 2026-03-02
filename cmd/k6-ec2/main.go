@@ -47,7 +47,7 @@ See also: k6-ecs for running on ECS Fargate/EC2 launch type.`,
 }
 
 func newLogger(cmd *cobra.Command) *slog.Logger {
-	levelStr := cmd.Root().PersistentFlags().GetString("log-level")
+	levelStr, _ := cmd.Root().PersistentFlags().GetString("log-level")
 	var level slog.Level
 	switch levelStr {
 	case "debug":
@@ -59,7 +59,7 @@ func newLogger(cmd *cobra.Command) *slog.Logger {
 	default:
 		level = slog.LevelInfo
 	}
-	return slog.New(slog.NewTextHandler(os.Stderr, &log.HandlerOptions{Level: level}))
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 }
 
 const sampleConfig = `apiVersion: k6-ec2.io/v1alpha1

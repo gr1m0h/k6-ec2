@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/k6-distributed/k6-aws-common/pkg/types"
+	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
 // Prepare resolves the test script (uploading to S3 if needed) and the AMI.

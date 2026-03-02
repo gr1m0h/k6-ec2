@@ -9,9 +9,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	"github.com/k6-distributed/k6-aws-common/pkg/monitor"
-	ec2config "github.com/k6-distributed/k6-ec2/internal/config"
-	"github.com/k6-distributed/k6-ec2/internal/runner"
+	ec2config "github.com/gr1m0h/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/internal/runner"
+	"github.com/gr1m0h/k6-ec2/pkg/monitor"
 	"github.com/spf13/cobra"
 )
 

@@ -13,10 +13,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"github.com/k6-distributed/k6-aws-common/pkg/result"
-	"github.com/k6-distributed/k6-aws-common/pkg/script"
-	"github.com/k6-distributed/k6-aws-common/pkg/types"
-	"github.com/k6-distributed/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/internal/config"
+	"github.com/gr1m0h/k6-ec2/pkg/result"
+	"github.com/gr1m0h/k6-ec2/pkg/script"
+	"github.com/gr1m0h/k6-ec2/pkg/types"
 )
 
 // Runner orchestrates a distributed k6 test run on EC2 instances.
