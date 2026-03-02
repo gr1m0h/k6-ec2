@@ -14,7 +14,7 @@ func newValidateCmd() *cobra.Command {
 		Use:   "validate",
 		Short: "Validate a test run configuration",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			spec, err := ec2config.Load(configFile)
+			spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandValidate, nil)
 			if err != nil {
 				return err
 			}

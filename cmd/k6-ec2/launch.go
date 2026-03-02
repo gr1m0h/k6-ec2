@@ -28,7 +28,7 @@ Requires a prior 'prepare' step.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := newLogger(cmd)
 
-			spec, err := ec2config.Load(configFile)
+			spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandLaunch, buildOverrides(cmd))
 			if err != nil {
 				return err
 			}
@@ -80,5 +80,8 @@ Requires a prior 'prepare' step.`,
 
 	cmd.Flags().StringVarP(&configFile, "file", "f", "testrun.yaml", "Path to test run config")
 	cmd.Flags().StringVar(&stateFile, "state", runner.DefaultStateFile, "Path to state file")
+	cmd.Flags().Int32P("parallelism", "p", 0, "Override runner.parallelism")
+	cmd.Flags().String("instance-type", "", "Override runner.instanceType")
+	cmd.Flags().String("region", "", "Override execution.region")
 	return cmd
 }

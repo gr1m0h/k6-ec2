@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	ec2config "github.com/gr1m0h/k6-ec2/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -38,6 +39,7 @@ See also: k6-ecs for running on ECS Fargate/EC2 launch type.`,
 		newPrepareCmd(),
 		newLaunchCmd(),
 		newExecuteCmd(),
+		newCleanupCmd(),
 		newValidateCmd(),
 		newLogsCmd(),
 		newInitCmd(),
@@ -60,6 +62,31 @@ func newLogger(cmd *cobra.Command) *slog.Logger {
 		level = slog.LevelInfo
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+}
+
+func buildOverrides(cmd *cobra.Command) *ec2config.Overrides {
+	o := &ec2config.Overrides{}
+	if cmd.Flags().Changed("parallelism") {
+		v, _ := cmd.Flags().GetInt32("parallelism")
+		o.Parallelism = &v
+	}
+	if cmd.Flags().Changed("instance-type") {
+		v, _ := cmd.Flags().GetString("instance-type")
+		o.InstanceType = &v
+	}
+	if cmd.Flags().Changed("region") {
+		v, _ := cmd.Flags().GetString("region")
+		o.Region = &v
+	}
+	if cmd.Flags().Changed("timeout") {
+		v, _ := cmd.Flags().GetString("timeout")
+		o.Timeout = &v
+	}
+	if cmd.Flags().Changed("cleanup") {
+		v, _ := cmd.Flags().GetString("cleanup")
+		o.Cleanup = &v
+	}
+	return o
 }
 
 const sampleConfig = `name: my-load-test

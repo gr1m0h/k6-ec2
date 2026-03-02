@@ -33,7 +33,7 @@ Uses instance IDs from the state file, or specify --instance-ids for pre-existin
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := newLogger(cmd)
 
-			spec, err := ec2config.Load(configFile)
+			spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandExecute, buildOverrides(cmd))
 			if err != nil {
 				return err
 			}
@@ -107,6 +107,8 @@ Uses instance IDs from the state file, or specify --instance-ids for pre-existin
 	cmd.Flags().StringVar(&stateFile, "state", runner.DefaultStateFile, "Path to state file")
 	cmd.Flags().StringVar(&instanceIDs, "instance-ids", "", "Comma-separated EC2 instance IDs (for pre-existing instances)")
 	cmd.Flags().StringVar(&scriptS3URI, "script-s3", "", "S3 URI of the test script (e.g., s3://bucket/test.js)")
+	cmd.Flags().String("region", "", "Override execution.region")
+	cmd.Flags().String("timeout", "", "Override execution.timeout")
 	return cmd
 }
 

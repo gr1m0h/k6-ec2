@@ -1,12 +1,28 @@
 # k6-ec2
 
-![](./images/logo.svg)
-
 A CLI tool that runs k6 load tests on EC2 instances as seamlessly as running k6 locally. It abstracts away SSM connections and automates the entire workflow — from script upload to instance cleanup.
 
-## Architecture
+## How It Works
 
-![](./images/architecture.svg)
+k6-ec2 is made up of two parts: **Terraform Module** and **CLI**.
+
+```
+Terraform Module (one-time)          CLI (per-test)
+========================          ========================
+S3 Bucket (scripts)               prepare: Upload script, resolve AMI
+IAM Role / Instance Profile          |
+IAM Policy (CLI operator)         launch:  RunInstances (Spot/OnDemand)
+Security Group                       |
+CloudWatch Log Group              execute: SSM SendCommand → k6 run
+Elastic IP (optional)                |
+                                  cleanup: TerminateInstances
+```
+
+**Terraform Module** creates the prerequisite infrastructure that persists across test runs. The CLI does not create these resources.
+
+**CLI** orchestrates per-test EC2 instances. It launches instances, runs k6 via SSM, streams logs, and terminates instances when done.
+
+Both are required. The Terraform Module sets up the foundation; the CLI runs on top of it.
 
 ## Features
 
@@ -14,7 +30,8 @@ A CLI tool that runs k6 load tests on EC2 instances as seamlessly as running k6 
 - **Distributed Execution** — Run k6 in parallel across multiple EC2 instances (just set `parallelism`)
 - **Spot Instances** — Automatic fallback to on-demand
 - **Terraform Module** — One-step infrastructure setup (S3, IAM, SG, CloudWatch)
-- **Declarative YAML** — Define test runs with a simple config file
+- **Pipeline Commands** — Run the full lifecycle with `run`, or control each phase independently
+- **CLI Overrides** — Override `parallelism`, `instance-type`, `region`, `timeout` via flags without editing YAML
 
 ## Quick Start
 
@@ -22,16 +39,109 @@ A CLI tool that runs k6 load tests on EC2 instances as seamlessly as running k6 
 # 1. Install
 go install github.com/gr1m0h/k6-ec2/cmd/k6-ec2@latest
 
-# 2. Set up infrastructure
+# 2. Set up infrastructure (one-time)
 cd terraform/examples
 terraform init && terraform apply \
   -var="vpc_id=vpc-xxx" \
   -var='subnet_ids=["subnet-aaa"]'
 
-# 3. Run
-k6-ec2 init -o testrun.yaml   # Generate a sample config
-k6-ec2 run -f testrun.yaml    # Execute load test
+# 3. Generate config and fill in Terraform outputs
+k6-ec2 init -o testrun.yaml
+
+# 4. Run
+k6-ec2 run -f testrun.yaml
 ```
+
+## CLI
+
+### Full Lifecycle
+
+`run` executes all four phases in one command:
+
+```bash
+k6-ec2 run -f testrun.yaml
+```
+
+This is equivalent to running `prepare` → `launch` → `execute` → `cleanup` sequentially.
+
+### Pipeline Commands
+
+Each phase can be run independently. State is passed between commands via a state file (default: `.k6-ec2-state.json`).
+
+```bash
+# Phase 1: Upload script to S3, resolve AMI
+k6-ec2 prepare -f testrun.yaml
+
+# Phase 2: Launch EC2 instances
+k6-ec2 launch -f testrun.yaml
+
+# Phase 3: Run k6 on the instances
+k6-ec2 execute -f testrun.yaml
+
+# Phase 4: Terminate instances
+k6-ec2 cleanup -f testrun.yaml
+```
+
+Each command only validates the config fields it actually needs:
+
+| Command | Required Config Fields |
+| :--- | :--- |
+| `prepare` | `name`, `script` |
+| `launch` | `name`, `runner.parallelism`, `execution.subnets` |
+| `execute` | `name`, `execution.timeout` |
+| `cleanup` | `cleanup` |
+| `run` / `validate` | All fields |
+
+This means you can use a minimal config for commands that don't need all fields. For example, `prepare` does not require `execution.subnets`.
+
+#### Using Pre-existing Instances
+
+If you have EC2 instances launched outside of k6-ec2 (e.g., by Terraform or another tool), you can skip `prepare` and `launch` and run k6 directly:
+
+```bash
+# Run on existing instances (no state file needed)
+k6-ec2 execute -f testrun.yaml \
+  --instance-ids i-abc123,i-def456 \
+  --script-s3 s3://my-bucket/test.js
+
+# Terminate specific instances
+k6-ec2 cleanup --instance-ids i-abc123,i-def456 --force
+```
+
+### Utility Commands
+
+| Command | Description |
+| :--- | :--- |
+| `k6-ec2 validate -f config.yaml` | Validate config file (all fields) |
+| `k6-ec2 logs --test-name X -f` | Stream CloudWatch Logs |
+| `k6-ec2 init -o config.yaml` | Generate a sample config file |
+| `k6-ec2 version` | Show version |
+
+### CLI Flag Overrides
+
+Frequently changed values can be overridden via CLI flags without editing the YAML file:
+
+| Flag | Short | Available In |
+| :--- | :--- | :--- |
+| `--parallelism` | `-p` | `run`, `launch` |
+| `--instance-type` | | `run`, `launch` |
+| `--region` | | `run`, `prepare`, `launch`, `execute` |
+| `--timeout` | | `run`, `execute` |
+| `--cleanup` | | `run` |
+
+```bash
+# Override parallelism and instance type for this run
+k6-ec2 run -f testrun.yaml -p 8 --instance-type c5.2xlarge
+
+# Override region
+k6-ec2 prepare -f testrun.yaml --region us-west-2
+```
+
+### Global Flags
+
+| Flag | Default | Description |
+| :--- | :--- | :--- |
+| `--log-level` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
 
 ## Configuration
 
@@ -104,7 +214,7 @@ cleanup: always  # always | on-success | never
 | Field | Default | Description |
 | :--- | :--- | :--- |
 | `runner.instanceType` | `c5.xlarge` | EC2 instance type to launch. |
-| `runner.parallelism` | `1` | Number of EC2 instances to launch (1–100). |
+| `runner.parallelism` | `1` | Number of EC2 instances to launch (1-100). |
 | `runner.ami` | latest AL2023 | AMI ID. If omitted, resolves the latest Amazon Linux 2023 AMI. |
 | `runner.k6Version` | `latest` | k6 version to install from GitHub Releases. |
 | `runner.rootVolumeSize` | `20` | EBS root volume size in GiB (gp3, encrypted). |
@@ -144,33 +254,96 @@ cleanup: always  # always | on-success | never
 | `on-success` | Terminate only if k6 exits successfully. Keep instances on failure for debugging. |
 | `never` | Never terminate. Requires manual `k6-ec2 cleanup --force`. |
 
-## CLI
-
-| Command | Description |
-| :--- | :--- |
-| `k6-ec2 run -f config.yaml` | Run full lifecycle (prepare → launch → execute → cleanup) |
-| `k6-ec2 prepare -f config.yaml` | Upload script to S3 and resolve AMI |
-| `k6-ec2 launch -f config.yaml` | Launch EC2 instances |
-| `k6-ec2 execute -f config.yaml` | Execute k6 on running instances |
-| `k6-ec2 cleanup -f config.yaml` | Terminate instances |
-| `k6-ec2 validate -f config.yaml` | Validate config file |
-| `k6-ec2 logs --test-name X -f` | Stream CloudWatch Logs |
-| `k6-ec2 init -o config.yaml` | Generate a sample config file |
-| `k6-ec2 version` | Show version |
-
-All configuration is driven by the YAML file (`-f`). Individual config values cannot be overridden via CLI flags.
-
-Pipeline commands (`prepare` → `launch` → `execute` → `cleanup`) share state through a state file (`--state`, default: `.k6-ec2-state.json`).
-
 ## Terraform Module
 
-The module in `terraform/modules/` creates the following resources:
+### Why is Terraform needed?
 
-| Resource | Purpose |
+The CLI creates and manages EC2 instances for each test run, but it does **not** create the supporting infrastructure those instances depend on:
+
+| Resource | Created By | Purpose | Lifecycle |
+| :--- | :--- | :--- | :--- |
+| S3 Bucket | **Terraform** | Store k6 test scripts | Persists across test runs |
+| IAM Role / Instance Profile | **Terraform** | EC2 instances need permissions for S3, SSM, CloudWatch | Persists across test runs |
+| IAM Policy (CLI operator) | **Terraform** | CLI user/role needs permissions to launch instances, send SSM commands | Persists across test runs |
+| Security Group | **Terraform** | Egress-only SG for runner instances | Persists across test runs |
+| CloudWatch Log Group | **Terraform** | k6 execution logs | Persists across test runs |
+| Elastic IP | **Terraform** | WAF IP-based allowlisting (optional) | Persists across test runs |
+| WAF v2 IP Set | **Terraform** | Allowlist runner IPs in CloudFront WAF (optional) | Persists across test runs |
+| EC2 Instances | **CLI** | Run k6 load tests | Created and terminated per test |
+| S3 Objects (scripts) | **CLI** | Upload test script | Per test (auto-expired) |
+| SSM Commands | **CLI** | Execute k6 on instances | Per test |
+
+Without Terraform (or equivalent manual setup), the CLI will fail because the required IAM roles, S3 bucket, and security groups do not exist.
+
+### Elastic IP and WAF Allowlisting
+
+When load testing a target behind WAF (e.g., CloudFront), the runner instances' IP addresses must be allowlisted. Since the CLI creates and terminates EC2 instances per test, their IP addresses change every run — WAF rules can't track them.
+
+**Elastic IPs (EIPs)** solve this. They are static IP addresses that persist across test runs:
+
+```
+Terraform (one-time)                CLI (per-test)
+================                    ================
+1. Create EIPs (eip_count=4)        3. Launch EC2 instances
+2. Register EIPs in WAF IP Set      4. Associate EIPs with instances
+                                     5. Run k6 (traffic from EIP addresses)
+                                     6. Terminate instances (EIPs auto-disassociate)
+                                        → EIPs remain for next test run
+```
+
+Setup:
+
+1. Set `eip_count` to match your `parallelism` in the Terraform module
+2. Use the example in `terraform/examples/main.tf` to create a WAF v2 IP Set with the EIPs
+3. Add the IP set as an allow rule in your CloudFront WAF WebACL
+4. Set `execution.eipAllocationIDs` in your config to the Terraform output `eip_allocation_ids`
+
+```bash
+# Terraform
+terraform apply -var="eip_count=4"
+
+# Config (testrun.yaml)
+execution:
+  eipAllocationIDs:
+    - eipalloc-aaa
+    - eipalloc-bbb
+    - eipalloc-ccc
+    - eipalloc-ddd
+```
+
+If your target does not use WAF IP-based allowlisting, EIPs are not needed. Set `eip_count = 0` (default) and omit `eipAllocationIDs`.
+
+### Setup
+
+```bash
+cd terraform/examples
+terraform init && terraform apply \
+  -var="vpc_id=vpc-xxx" \
+  -var='subnet_ids=["subnet-aaa"]'
+```
+
+### Outputs
+
+After `terraform apply`, use the outputs to populate your `testrun.yaml`:
+
+| Output | Maps To |
 | :--- | :--- |
-| S3 Bucket | Store k6 test scripts |
-| IAM Role / Instance Profile | For EC2 runner instances |
-| IAM Policy (CLI) | For CLI operator |
-| Security Group | For runner instances |
-| CloudWatch Log Group | SSM execution logs |
-| Elastic IP (optional) | For WAF IP-based allow lists |
+| `instance_profile_name` | `runner.iamInstanceProfile` |
+| `security_group_id` | `execution.securityGroups[]` |
+| `subnet_ids` | `execution.subnets[]` |
+| `script_bucket` | `K6_EC2_SCRIPT_BUCKET` env var |
+| `cli_policy_arn` | Attach to your CI/CD role |
+| `eip_allocation_ids` | `execution.eipAllocationIDs[]` (if using EIPs) |
+
+### Module Variables
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `name` | `k6-ec2` | Name prefix for all resources. |
+| `vpc_id` | (required) | VPC ID for the security group. |
+| `subnet_ids` | (required) | Subnet IDs for runner instances. |
+| `eip_count` | `0` | Number of Elastic IPs. Set to match `parallelism` for WAF allowlisting. |
+| `log_retention_days` | `14` | CloudWatch log retention. |
+| `s3_expiration_days` | `30` | Auto-delete S3 scripts after N days. |
+| `enable_spot` | `true` | Spot instance default in sample config output. |
+| `tags` | `{}` | Additional tags for all resources. |

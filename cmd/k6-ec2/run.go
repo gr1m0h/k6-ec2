@@ -30,7 +30,7 @@ func newRunCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := newLogger(cmd)
 
-			spec, err := ec2config.Load(configFile)
+			spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandRun, buildOverrides(cmd))
 			if err != nil {
 				return err
 			}
@@ -96,5 +96,10 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&configFile, "file", "f", "testrun.yaml", "Path to test run config")
 	cmd.Flags().BoolVar(&noLogs, "no-logs", false, "Disable real-time log streaming")
 	cmd.Flags().StringVarP(&outputFormat, "output", "o", "text", "Output format (text, json)")
+	cmd.Flags().Int32P("parallelism", "p", 0, "Override runner.parallelism")
+	cmd.Flags().String("instance-type", "", "Override runner.instanceType")
+	cmd.Flags().String("region", "", "Override execution.region")
+	cmd.Flags().String("timeout", "", "Override execution.timeout")
+	cmd.Flags().String("cleanup", "", "Override cleanup policy (always, on-success, never)")
 	return cmd
 }

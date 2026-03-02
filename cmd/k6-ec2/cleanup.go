@@ -57,7 +57,7 @@ With --force, instances are terminated regarless of the cleanup policy.`,
 			// Load config if provided (needed for Runner with cleanup policy)
 			var r *runner.Runner
 			if configFile != "" {
-				spec, err := ec2config.Load(configFile)
+				spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandCleanup, buildOverrides(cmd))
 				if err != nil {
 					return err
 				}

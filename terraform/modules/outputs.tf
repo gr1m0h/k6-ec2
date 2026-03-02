@@ -61,32 +61,31 @@ output "waf_ip_set_cidrs" {
 output "sample_config" {
   description = "Sample k6-ec2 YAML config populated with Terraform output values."
   value       = <<-EOT
-    apiVersion: k6-ec2.io/v1alpha1
-    kind: EC2TestRun
-    metadata:
-      name: my-load-test
-    spec:
-      script:
-        localFile: ./scripts/test.js
-      runner:
-        instanceType: c5.xlarge
-        parallelism: 4
-        iamInstanceProfile: ${aws_iam_instance_profile.runner.name}
-        spot:
-          enabled: ${var.enable_spot}
-          fallbackToOnDemand: true
-      execution:
-        subnets: ${jsonencode(var.subnet_ids)}
-        securityGroups: ["${aws_security_group.k6.id}"]
-        assignPublicIP: true
-        region: ${data.aws_region.current.name}
-        ssmEnabled: true
+    name: my-load-test
+
+    script:
+      localFile: ./scripts/test.js
+
+    runner:
+      instanceType: c5.xlarge
+      parallelism: 4
+      iamInstanceProfile: ${aws_iam_instance_profile.runner.name}
+      spot:
+        enabled: ${var.enable_spot}
+        fallbackToOnDemand: true
+
+    execution:
+      subnets: ${jsonencode(var.subnet_ids)}
+      securityGroups: ["${aws_security_group.k6.id}"]
+      assignPublicIP: true
+      region: ${data.aws_region.current.name}
+      ssmEnabled: true
 %{if var.eip_count > 0~}
-        eipAllocationIDs: ${jsonencode(aws_eip.k6[*].allocation_id)}
+      eipAllocationIDs: ${jsonencode(aws_eip.k6[*].allocation_id)}
 %{else~}
-        # eipAllocationIDs: [] # Set eip_count > 0 to enable
+      # eipAllocationIDs: [] # Set eip_count > 0 to enable
 %{endif~}
-        cleanup:
-          policy: always
+
+    cleanup: always
   EOT
 }

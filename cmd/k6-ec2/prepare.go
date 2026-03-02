@@ -29,7 +29,7 @@ Writes a state file that can be consumed by subsequent pipeline commands.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			logger := newLogger(cmd)
 
-			spec, err := ec2config.Load(configFile)
+			spec, err := ec2config.LoadForCommand(configFile, ec2config.CommandPrepare, buildOverrides(cmd))
 			if err != nil {
 				return err
 			}
@@ -75,5 +75,6 @@ Writes a state file that can be consumed by subsequent pipeline commands.`,
 
 	cmd.Flags().StringVarP(&configFile, "file", "f", "testrun.yaml", "Path to test run config")
 	cmd.Flags().StringVar(&stateFile, "state", runner.DefaultStateFile, "Path to state file")
+	cmd.Flags().String("region", "", "Override execution.region")
 	return cmd
 }
